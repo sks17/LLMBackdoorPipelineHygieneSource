@@ -78,7 +78,7 @@ def run_e0_2() -> dict:
     """FPR-resolution sweep: clean-negative count vs achievable FPR (Wilson upper bound)."""
     rows = []
     for target_calib_neg in (30, 100, 300, 1000, 3000):
-        n_examples = int(round(target_calib_neg / CALIB_NEG_PER_EXAMPLE))
+        n_examples = round(target_calib_neg / CALIB_NEG_PER_EXAMPLE)
         r = run_probe_experiment(_cfg(f"E0.2_n{target_calib_neg}", n_examples=n_examples))
         for a in r.achieved_fprs_clean:
             rows.append(
@@ -108,12 +108,13 @@ def main() -> None:
     print()
     e02 = run_e0_2()
     print("== E0.2 FPR-resolution limit (clean-negative sweep) ==")
-    print(f"  {'target_fpr':>10} {'calib_neg':>9} {'ach_fpr':>8} {'wilson_hi':>9} {'n_test_neg':>10} {'resolv':>7}")
+    hdr = ("target_fpr", "calib_neg", "ach_fpr", "wilson_hi", "n_test_neg", "resolvable")
+    print(f"{hdr[0]:>10} {hdr[1]:>10} {hdr[2]:>8} {hdr[3]:>10} {hdr[4]:>11} {hdr[5]:>10}")
     for row in e02["sweep"]:
         print(
-            f"  {row['target_fpr']:>10g} {row['target_clean_calib_neg']:>9} "
-            f"{row['achieved_fpr_clean']:>8.4f} {row['wilson_high']:>9.4f} "
-            f"{row['n_test_clean_neg']:>10} {str(row['resolvable']):>7}"
+            f"{row['target_fpr']:>10g} {row['target_clean_calib_neg']:>10} "
+            f"{row['achieved_fpr_clean']:>8.4f} {row['wilson_high']:>10.4f} "
+            f"{row['n_test_clean_neg']:>11} {row['resolvable']!s:>10}"
         )
     print()
     print(f"wrote summaries -> {OUT}/E0.1_summary.json, {OUT}/E0.2_summary.json")

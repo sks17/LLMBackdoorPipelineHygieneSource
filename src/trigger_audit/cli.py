@@ -7,12 +7,16 @@ imported inside command bodies so ``trigger-audit --help`` stays fast and depend
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from trigger_audit import __version__
+
+if TYPE_CHECKING:
+    from trigger_audit.schemas.probes import ProbeEvaluationResult
 
 app = typer.Typer(
     add_completion=False,
@@ -26,6 +30,71 @@ def _fail(message: str) -> None:
     """Print an error and exit with a non-zero status."""
     console.print(f"[red]error:[/red] {message}")
     raise typer.Exit(code=1)
+
+
+def _print_probe_result(result: ProbeEvaluationResult) -> None:
+    """Render one probe-detection result: per-layer + aggregate AUROC and achieved FPRs.
+
+    Shared by ``run-probe-experiment`` and ``extract-activations`` so both print the same
+    calibrated operating-point view. Per-layer rows carry all-trials and delivered-only AUROC
+    plus the delivered-only TPR at each calibrated threshold; the ``agg`` row is the multi-layer
+    aggregate. Achieved FPR is shown on ALL test negatives (deployment-pessimistic) and on the
+    CLEAN test negatives (the population the budget actually contracts), each with a Wilson CI.
+    """
+    num_layers = result.metadata.get("num_layers")
+    targets = result.target_fprs
+
+    scores = Table(title=f"Probe result: {result.experiment_id} ({result.model_id})")
+    scores.add_column("layer", justify="right")
+    scores.add_column("depth", justify="right")
+    scores.add_column("AUROC all", justify="right")
+    scores.add_column("AUROC deliv.", justify="right")
+    for target in targets:
+        scores.add_column(f"TPR@{target} deliv.", justify="right")
+
+    for metrics_all, metrics_deliv in zip(
+        result.layer_metrics_all, result.layer_metrics_delivered_only, strict=True
+    ):
+        depth = (
+            f"{metrics_all.layer_index / num_layers:.2f}"
+            if isinstance(num_layers, int) and num_layers > 0
+            else "-"
+        )
+        scores.add_row(
+            str(metrics_all.layer_index),
+            depth,
+            f"{metrics_all.auroc:.3f}",
+            f"{metrics_deliv.auroc:.3f}",
+            *(f"{metrics_deliv.tpr_at_target_fpr.get(str(target), 0.0):.3f}" for target in targets),
+        )
+    agg_all = result.aggregated_metrics_all
+    agg_deliv = result.aggregated_metrics_delivered_only
+    scores.add_row(
+        f"agg:{result.aggregation}",
+        "-",
+        f"{agg_all.auroc:.3f}",
+        f"{agg_deliv.auroc:.3f}",
+        *(f"{agg_deliv.tpr_at_target_fpr.get(str(target), 0.0):.3f}" for target in targets),
+    )
+    console.print(scores)
+
+    fpr_table = Table(title="Achieved FPR at the calibrated thresholds (aggregate)")
+    fpr_table.add_column("target FPR", justify="right")
+    fpr_table.add_column("achieved (all)", justify="right")
+    fpr_table.add_column("95% CI (all)", justify="right")
+    fpr_table.add_column("achieved (clean)", justify="right")
+    fpr_table.add_column("95% CI (clean)", justify="right")
+    clean_by_target = {a.target_fpr: a for a in result.achieved_fprs_clean}
+    for achieved in result.achieved_fprs:
+        clean = clean_by_target.get(achieved.target_fpr)
+        fpr_table.add_row(
+            f"{achieved.target_fpr}",
+            f"{achieved.achieved_fpr:.4f} (n={achieved.n_negatives})",
+            f"[{achieved.ci_low:.4f}, {achieved.ci_high:.4f}]",
+            f"{clean.achieved_fpr:.4f} (n={clean.n_negatives})" if clean else "-",
+            f"[{clean.ci_low:.4f}, {clean.ci_high:.4f}]" if clean else "-",
+        )
+    console.print(fpr_table)
 
 
 @app.command("version")
@@ -306,6 +375,168 @@ def score_survival(
             f"{summary['delivered_rate']:.2f}",
         )
     console.print(table)
+
+
+@app.command("run-probe-experiment")
+def run_probe_experiment_cmd(
+    config: Path = typer.Argument(
+        ..., exists=True, dir_okay=False, help="Probe-detection experiment YAML (one cell)."
+    ),
+) -> None:
+    """Run one probe-detection cell and print per-layer + aggregate AUROC and achieved FPRs.
+
+    With ``survival_results_path``/``final_tokens_path`` set it joins Project 1's
+    delivery-verified records (the measurement path); with both null it builds the deterministic
+    synthetic dataset and runs fully offline against the reference extractor (the smoke path).
+    """
+    from trigger_audit.config import load_config
+    from trigger_audit.experiments.probe_detection import (
+        ProbeDetectionExperimentConfig,
+        run_probe_experiment,
+    )
+
+    cfg = load_config(config, ProbeDetectionExperimentConfig)
+    result = run_probe_experiment(cfg)
+    _print_probe_result(result)
+    console.print(f"[green]wrote[/green] result -> {cfg.results_out}")
+
+
+@app.command("select-probe-subset")
+def select_probe_subset_cmd(
+    survival_results: Path = typer.Argument(
+        ..., exists=True, help="Survival results JSONL file or a directory of them."
+    ),
+    delivered_positive: int = typer.Option(0, help="Min delivery-verified positive trials."),
+    clean_negative: int = typer.Option(
+        0, help="Min clean (never-inserted) negative trials; target >=~1000 to resolve 1e-3."
+    ),
+    partial_survival_negative: int = typer.Option(
+        0, help="Min inserted-but-undelivered (partial-survival) negative trials."
+    ),
+    boundary_corruption: int = typer.Option(0, help="Min boundary-corruption trials."),
+    stratified_sample: int = typer.Option(
+        0, help="Min distinct (policy, position, length-bucket) covariate cells covered."
+    ),
+    seed: int = typer.Option(0, help="Seed for the greedy fill's base shuffle."),
+    out: Path = typer.Option(..., help="Output selection JSON (written only if Gate 0 passes)."),
+) -> None:
+    """Select a stratified, base_id-grouped probe subset and gate it on the counterfactual control.
+
+    Activation extraction is the expensive GPU phase, so it runs on a stratified ``base_id``
+    subset, never the whole delivery grid. This selects that subset, then runs Project 1's
+    Gate-0 counterfactual control on it: if any trigger-absent twin leaked (delivered a trigger
+    with none inserted), the labels are untrustworthy -- the command prints the leak examples and
+    exits non-zero **without writing the selection** (parity with the P1 pilot discipline). On
+    success it writes the selection JSON and prints the achieved-vs-target ``subset_report``,
+    with any shortfalls called out explicitly.
+    """
+    from trigger_audit.experiments.probe_detection.selection import (
+        StratumTargets,
+        select_probe_subset,
+        subset_report,
+        verify_subset_counterfactual,
+        write_selected_trial_ids,
+    )
+    from trigger_audit.io.jsonl import read_jsonl_as
+    from trigger_audit.schemas import SurvivalResult
+
+    files = (
+        sorted(survival_results.glob("*.jsonl"))
+        if survival_results.is_dir()
+        else [survival_results]
+    )
+    rows: list[SurvivalResult] = []
+    for file in files:
+        rows.extend(read_jsonl_as(file, SurvivalResult))
+    if not rows:
+        _fail("no survival result rows found")
+
+    targets = StratumTargets(
+        delivered_positive=delivered_positive,
+        clean_negative=clean_negative,
+        partial_survival_negative=partial_survival_negative,
+        boundary_corruption=boundary_corruption,
+        stratified_sample=stratified_sample,
+    )
+    selection = select_probe_subset(rows, targets, seed=seed)
+
+    verdict = verify_subset_counterfactual(rows, selection)
+    if not verdict.ok:
+        console.print(f"[red]Gate 0 FAILED[/red]: {verdict.summary()}")
+        console.print("Leak examples (trigger-absent twins that nonetheless delivered):")
+        for example in verdict.leak_examples:
+            console.print(f"  {example}")
+        _fail(
+            "refusing to write the selection: a counterfactual leak means the survival scorer "
+            "is unsound and every downstream probe label is untrustworthy. Fix the scorer and "
+            "rerun the survival wave before selecting a probe subset."
+        )
+
+    write_selected_trial_ids(out, selection)
+    console.print(subset_report(selection))
+    console.print(f"[green]wrote[/green] selection -> {out}")
+
+
+@app.command("extract-activations")
+def extract_activations_cmd(
+    config: Path = typer.Argument(
+        ..., exists=True, dir_okay=False, help="Probe-detection experiment YAML (one cell)."
+    ),
+    device: str | None = typer.Option(
+        None, help="Device override that wins over the config (e.g. cuda:0)."
+    ),
+) -> None:
+    """Run the GPU extraction + probe pass for one cell (hf backend, populating the store).
+
+    A thin wrapper over ``run_probe_experiment`` that forces ``extractor_backend='hf'`` and
+    ``reuse_store=True`` (via ``model_copy``): the activation store is populated as the
+    store-writing side effect, so a later CPU ``run-probe-experiment`` on the same cell reuses
+    every layer and skips the forward passes. ``--device`` (when given) wins over the config's
+    ``device``. Activation extraction is the only GPU phase of the probe wave.
+    """
+    from trigger_audit.config import load_config
+    from trigger_audit.experiments.probe_detection import (
+        ProbeDetectionExperimentConfig,
+        run_probe_experiment,
+    )
+
+    cfg = load_config(config, ProbeDetectionExperimentConfig)
+    updates: dict[str, object] = {"extractor_backend": "hf", "reuse_store": True}
+    if device is not None:
+        updates["device"] = device
+    cfg = cfg.model_copy(update=updates)
+    result = run_probe_experiment(cfg)
+    _print_probe_result(result)
+    console.print(f"[green]extracted[/green] -> {cfg.activations_dir}")
+
+
+@app.command("expand-probe-grid")
+def expand_probe_grid_cmd(
+    axes: Path = typer.Argument(
+        ..., exists=True, dir_okay=False, help="ProbeGridAxes YAML (one experiment tier's grid)."
+    ),
+    out_dir: Path = typer.Option(..., help="Directory to write the generated per-cell configs."),
+) -> None:
+    """Expand an axes YAML into per-cell probe configs; print count + the Slurm array range.
+
+    Loads a :class:`ProbeGridAxes`, takes the Cartesian product of its axes, writes one loadable
+    ``ProbeDetectionExperimentConfig`` YAML per cell (deterministic, content-derived ids -- same
+    axes yield the same ids on re-expansion), then prints the cell count and the
+    ``--array=0-N`` range to hand to the Slurm templates.
+    """
+    from trigger_audit.config import load_config
+    from trigger_audit.experiments.probe_detection.grid import (
+        ProbeGridAxes,
+        expand_probe_grid,
+        write_probe_configs,
+    )
+
+    axes_model = load_config(axes, ProbeGridAxes)
+    configs = expand_probe_grid(axes_model)
+    paths = write_probe_configs(configs, out_dir)
+    console.print(f"[green]expanded[/green] {len(configs)} probe cell(s) -> {out_dir}")
+    if paths:
+        console.print(f"Slurm array range for this grid: [bold]--array=0-{len(paths) - 1}[/bold]")
 
 
 def main() -> None:

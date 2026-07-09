@@ -1,0 +1,70 @@
+# Tier 2 - Robustness to deployment-induced shift (E2.1-E2.4). ProbeGridAxes for the GPU wave that
+# trains a probe on one slice of the delivery-verified canary data and TESTS it on a held-out slice.
+# The train/test partition is a PARAMETER: the `generalization:` block below. `run_probe_experiment`
+# applies it - TEST is the held-out side, a base_id-grouped CALIBRATION subset is carved from TRAIN,
+# and rows matching neither side are dropped (experiments/probe_detection/generalization.py). So a
+# generated E2 cell run the ordinary way MEASURES the holdout; no bypass needed. Licenses claims
+# about shift-robustness of CANARY detection only (not backdoors).
+#
+#   trigger-audit expand-probe-grid configs/probe/E2_shift.axes.yaml \
+#       --out-dir configs/probe/generated/e2
+#
+# WHICH BLOCK MAPS TO WHICH E2 EXPERIMENT (edit ONLY the `generalization:` block, then re-expand):
+#   E2.1  Delivery-style generalization (DEFAULT below) - kind: policy; train on some pipeline
+#         policies, test on held-out ones. Membership is read from each example's `pipeline_policy`.
+#   E2.2  Long-context generalization - kind: context_length; train on short contexts
+#         (<= train_context_max), test on long ones (>= test_context_min). Read from `context_length`.
+#           generalization:
+#             kind: context_length
+#             train_context_max: 8000
+#             test_context_min: 16000
+#   E2.3  Trigger-type generalization - kind: trigger_type; train on some trigger families, test on
+#         held-out ones. Read from `trigger_type` (falls back to `trigger_id`).
+#           generalization:
+#             kind: trigger_type
+#             train_trigger_types: [rand_001, multi_001]
+#             test_trigger_types: [boundary_001, natural_001]
+#   E2.4  Cross-model transfer (SAME-WIDTH only) - NOT a single-cell holdout: train on model A, EVAL
+#         on model B, and a probe vector is dimension-compatible only across equal hidden_size
+#         checkpoints. Run it as an analysis-layer step over two same-width models' cells (component
+#         G), never as a naive cross-size "transfer" (dimensionally malformed - see AR-4).
+#
+# Pins are PLACEHOLDERS (revision: main). Point the data-source paths at your survival wave outputs.
+# Cardinality = 2 models x 1 band x 1 pooling x 4 aggregations x 1 fpr-set x 3 seeds = 24 cells.
+
+experiment_family: E2
+
+models:
+  # Same-width pairing note (E2.4): pick two checkpoints of one hidden_size for literal transfer.
+  - id: qwen3-1_7b
+    model_id: Qwen/Qwen3-1.7B
+    revision: main               # PLACEHOLDER - pin to a real commit SHA
+    device: cuda:0
+    trust_remote_code: false
+  - id: qwen3-4b
+    model_id: Qwen/Qwen3-4B
+    revision: main
+    device: cuda:0
+    trust_remote_code: false
+
+layer_depth_fractions:
+  - [0.5, 0.66, 0.75, 0.89]        # pre-registered band; keep fixed while the SHIFT axis varies
+
+poolings: [mean]                    # mean/trajectory pooling is the right op point under shift
+
+aggregations: [mean_score, max_score, product_of_experts, quantile]
+
+target_fprs:
+  - [0.01, 0.001]
+
+seeds: [0, 1, 2]
+
+survival_results_path: outputs/survival_results/all_survival.jsonl
+final_tokens_path: outputs/survival_results/all_final_tokens.jsonl
+synthetic_mode: null
+
+# E2.1 delivery-style holdout (DEFAULT). Swap this whole block for the E2.2/E2.3 variants above.
+generalization:
+  kind: policy
+  train_policies: [none, head_truncation, tail_truncation]
+  test_policies: [keep_recent_messages, rag_baseline]

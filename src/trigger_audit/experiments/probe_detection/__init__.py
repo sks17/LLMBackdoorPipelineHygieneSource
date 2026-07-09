@@ -18,6 +18,12 @@ from trigger_audit.experiments.probe_detection.generalization import (
     assign_generalization_splits,
     partition_by_metadata,
 )
+from trigger_audit.experiments.probe_detection.grid import (
+    ProbeGridAxes,
+    ProbeModelSpec,
+    expand_probe_grid,
+    write_probe_configs,
+)
 from trigger_audit.experiments.probe_detection.runner import (
     ProbeDetectionRunner,
     run_probe_experiment,
@@ -27,11 +33,15 @@ __all__ = [
     "GeneralizationSpec",
     "ProbeDetectionExperimentConfig",
     "ProbeDetectionRunner",
+    "ProbeGridAxes",
+    "ProbeModelSpec",
     "assign_generalization_splits",
     "assign_splits",
     "build_probe_examples",
     "build_synthetic_probe_dataset",
     "build_synthetic_probe_dataset_with_twins",
+    "expand_probe_grid",
     "partition_by_metadata",
     "run_probe_experiment",
+    "write_probe_configs",
 ]

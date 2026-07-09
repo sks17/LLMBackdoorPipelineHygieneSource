@@ -1,0 +1,57 @@
+# Tier 3 - REAL BACKDOORED MODELS (E3.1-E3.4). ProbeGridAxes for the ONLY tier that licenses a
+# backdoor-detection statement. PLACEHOLDER model ids - do NOT run this against any checkpoint until
+# every scoping precondition below is satisfied.
+#
+# ============================ SCOPING - READ BEFORE RUNNING ANYTHING ==========================
+#  1. ALLOWLIST. Each checkpoint MUST be registered in a BackdoorRegistry with full provenance and
+#     `allowlisted: true` (docs/PROJECT2_BACKDOOR_SAFETY.md "Lifecycle"). Flipping `allowlisted` is a
+#     manual, reviewed, out-of-band step - NEVER from expand-probe-grid or this file.
+#  2. ASR PRECONDITION. `verify_backdoor_installed` MUST report installed == True (high ASR, low
+#     clean-fire-rate) for the checkpoint. An unverified checkpoint's probe numbers measure a
+#     backdoor that was never actually installed (AR-5: small backdoors may not install).
+#  3. CANARY != BACKDOOR. Tiers 0-2 measured harmless canaries; their detectability may over- or
+#     under-state backdoor detectability. Only a clean Tier-3 run licenses a backdoor-detection
+#     claim, and even then ONLY "TPR t @ FPR f on installed backdoor type T, model M" - NEVER a
+#     general "linear probes detect backdoors" headline (PRE_REGISTRATION item 10).
+# =============================================================================================
+#
+#   trigger-audit expand-probe-grid configs/probe/E3_backdoor.axes.yaml \
+#       --out-dir configs/probe/generated/e3
+#
+# E3.1 install & measure (TAR_w/TAR_wo) across the DPA taxonomy - one `models` entry per installed
+#      backdoor type. E3.2 poison-rate x complexity floor, E3.3 behavioral-vs-representational, and
+#      E3.4 baseline battery are analysis-layer sweeps over these cells' predictions (component G).
+# Pins are PLACEHOLDERS: <ORG>/<checkpoint> + <COMMIT_SHA> - replace with the real allowlisted ids.
+# Cardinality = 2 models x 1 band x 1 pooling x 4 aggregations x 1 fpr-set x 3 seeds = 24 cells.
+
+experiment_family: E3
+
+models:
+  - id: qwen3-0_6b-badnet          # PLACEHOLDER label; real allowlisted checkpoint id below
+    model_id: "<ORG>/<qwen3-0_6b-badnet-checkpoint>"
+    revision: "<COMMIT_SHA>"
+    device: cuda:0
+    trust_remote_code: false
+  - id: tinyllama-1_1b-sleeper
+    model_id: "<ORG>/<tinyllama-1_1b-sleeper-checkpoint>"
+    revision: "<COMMIT_SHA>"
+    device: cuda:0
+    trust_remote_code: false
+
+layer_depth_fractions:
+  - [0.5, 0.66, 0.75, 0.89]        # pre-registered band
+
+poolings: [mean]
+
+aggregations: [mean_score, max_score, product_of_experts, quantile]
+
+target_fprs:
+  - [0.01, 0.001]
+
+seeds: [0, 1, 2]
+
+# Delivery-verified survival wave over the BACKDOORED checkpoints (edit to your outputs). Gate 0
+# still applies to this subset before probing (docs/PROJECT2_EXECUTION.md Step 2).
+survival_results_path: outputs/survival_results/backdoor_survival.jsonl
+final_tokens_path: outputs/survival_results/backdoor_final_tokens.jsonl
+synthetic_mode: null

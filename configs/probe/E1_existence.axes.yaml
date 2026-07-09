@@ -1,0 +1,79 @@
+# Tier 1 - Existence & shape on REAL weights (E1.1-E1.5). ProbeGridAxes for the GPU wave over
+# harmless, delivery-verified canaries. Licenses claims about DELIVERED-CANARY REPRESENTATIONS only
+# (where the signal lives, which pooling/aggregation recovers it, how it scales) - NEVER a
+# backdoor-detection claim (canary != backdoor; that is Tier 3). Requires the [hf,generate] extras
+# and a CUDA torch build; run GPU extraction via scripts/slurm/run_probe_extraction.slurm.
+#
+#   trigger-audit expand-probe-grid configs/probe/E1_existence.axes.yaml \
+#       --out-dir configs/probe/generated/e1
+#
+# WHICH PARAMETER MAPS TO WHICH E1 EXPERIMENT:
+#   E1.1  Layer sweep per model - `layer_depth_fractions` (two bands below: the pre-registered
+#         {0.5,0.66,0.75,0.89} default cell, plus a fuller sweep to CONFIRM the band on our suite).
+#   E1.2  Pooling ablation - `poolings: [mean, last_token, max]` (mean is the deployable op point;
+#         `trigger_span` is oracle-only, added only for a diagnostic run).
+#   E1.3  Multi-layer aggregation - `aggregations` (closed-form headline set + `stacked_logistic`,
+#         which is CAVEATED: it is fit on CALIBRATION, an adaptivity trade-off - see PRE_REG item 5).
+#   E1.4  Scale curve - the five `models` span 0.6B->8B (+ Pythia-1B); expand and compare per model.
+#   E1.5  Delivery-conditional decomposition (the headline) - inherent in every result: the runner
+#         reports every metric all-trials AND delivered-only, so P(fire) vs P(fire|delivered) and the
+#         apparent-miss-that-is-really-delivery-failure fraction come from the dual reporting.
+#
+# Pins are PLACEHOLDERS: replace every `revision: main` with a real commit SHA before a real run
+# (a reproducible wave pins the checkpoint). Point the two data-source paths at your concatenated
+# survival wave + final-tokens sidecar (docs/PROJECT2_EXECUTION.md Steps 1-2).
+#
+# Cardinality = 5 models x 2 bands x 3 poolings x 5 aggregations x 1 fpr-set x 3 seeds = 450 cells.
+# This is the FULL tier; comment out models/poolings/aggregations/seeds to run a subset.
+
+experiment_family: E1
+
+models:
+  - id: qwen3-0_6b
+    model_id: Qwen/Qwen3-0.6B
+    revision: main               # PLACEHOLDER - pin to a real commit SHA
+    device: cuda:0
+    trust_remote_code: false
+  - id: qwen3-1_7b
+    model_id: Qwen/Qwen3-1.7B
+    revision: main
+    device: cuda:0
+    trust_remote_code: false
+  - id: qwen3-4b
+    model_id: Qwen/Qwen3-4B
+    revision: main
+    device: cuda:0
+    trust_remote_code: false
+  - id: qwen3-8b
+    model_id: Qwen/Qwen3-8B
+    revision: main
+    device: cuda:0
+    trust_remote_code: false
+  - id: pythia-1b
+    model_id: EleutherAI/pythia-1b
+    revision: main
+    device: cuda:0
+    trust_remote_code: false
+
+layer_depth_fractions:
+  - [0.5, 0.66, 0.75, 0.89]                       # pre-registered band (default cell)
+  - [0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0]   # fuller per-model sweep (E1.1 confirmation)
+
+poolings: [mean, last_token, max]                 # E1.2 (mean deployable; span is oracle-only)
+
+aggregations:
+  - mean_score           # closed-form headline set (E1.3)
+  - max_score
+  - product_of_experts
+  - quantile
+  - stacked_logistic     # CAVEATED: learned, fit on CALIBRATION (PRE_REGISTRATION item 5)
+
+target_fprs:
+  - [0.01, 0.001]        # 1e-2 resolvable; 1e-3 bounded-only unless clean negatives >=~1000
+
+seeds: [0, 1, 2]
+
+# Delivery-verified measurement path (edit to your wave's concatenated outputs).
+survival_results_path: outputs/survival_results/all_survival.jsonl
+final_tokens_path: outputs/survival_results/all_final_tokens.jsonl
+synthetic_mode: null

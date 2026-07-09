@@ -1,0 +1,58 @@
+# Tier 0 - Instrument validity (E0.1-E0.5). ProbeGridAxes for the OFFLINE instrument checks:
+# reference extractor, synthetic counterfactual twins, CPU only. NO real weights, NO GPU, NO
+# downloads. These cells license claims about the HARNESS (calibration honesty, split discipline,
+# pooling confound), never about backdoors or even canary recoverability on real models.
+#
+#   trigger-audit expand-probe-grid configs/probe/E0_instrument.axes.yaml \
+#       --out-dir configs/probe/generated/e0
+#   trigger-audit run-probe-experiment configs/probe/generated/e0/<one-cell>.yaml   # runs offline
+#
+# WHICH PARAMETER MAPS TO WHICH E0 EXPERIMENT (edit these to instantiate each):
+#   E0.1  Recoverability & determinism GATE - inherent: the reference extractor keeps token
+#         presence linearly recoverable and is deterministic given (seed, hidden_size, num_layers),
+#         so any cell here re-runs byte-identically. A PASS is a plumbing gate, never evidence.
+#   E0.2  Calibration honesty & FPR resolution - sweep the CLEAN-NEGATIVE COUNT. This is NOT a grid
+#         axis (the twins builder derives it from `synthetic_n_bases`); to sweep n in
+#         {30,100,300,1000,3000}, edit `synthetic_n_bases` in the generated per-cell YAMLs (n clean
+#         negatives ~= n bases). target_fpr=1e-3 is resolvable only at >=~1000 clean negatives; below
+#         that it is honestly reported as 0 with a wide Wilson interval (see PRE_REGISTRATION item 6).
+#   E0.3  Leakage ablation (base_id-grouped vs example-level split) - the twins builder puts each
+#         positive/clean-negative twin under a shared base_id, and the grouped split keeps them
+#         together. Measuring the example-level INFLATION needs an example-level split variant the
+#         runner does not expose; documented as a seam in docs/PROJECT2_EXECUTION.md, not silently
+#         claimed here.
+#   E0.4  Operator-confound ablation (span-fallback ON/OFF) - add `trigger_span` to `poolings` to run
+#         the oracle span diagnostic; it always runs with the seeded random-span fallback ON so the
+#         pooling OPERATOR is identical across classes. trigger_span is ORACLE-ONLY, never a
+#         deployable operating point.
+#   E0.5  Three-population calibration ablation (clean-only vs clean+partial) - the runner calibrates
+#         on CLEAN negatives only by design; `synthetic_mode: twins` + `partial_survival_fraction`
+#         (a generated-cell field) populate the third population the clean-only rule exists for.
+#
+# Defaults below are the PRE_REGISTRATION (item 3/4/5/6) instrument set: depth band {0.5,0.66,0.75,
+# 0.89}, mean pooling, the four CLOSED-FORM aggregators, FPR targets {1e-2,1e-3}, seeds {0,1,2}.
+# Cardinality = 1 model x 1 band x 1 pooling x 4 aggregations x 1 fpr-set x 3 seeds = 12 cells.
+
+experiment_family: E0
+
+models:
+  # No model_id -> the dependency-free reference backend (offline, deterministic). The reference
+  # extractor defaults to 4 transformer blocks, so the depth band below resolves to layers {2,3,4}.
+  - id: reference
+
+layer_depth_fractions:
+  - [0.5, 0.66, 0.75, 0.89]        # pre-registered informative band (fractions of model depth)
+
+poolings: [mean]                    # deployable operating pooling (add `trigger_span` for E0.4)
+
+aggregations: [mean_score, max_score, product_of_experts, quantile]   # closed-form headline set
+
+target_fprs:
+  - [0.01, 0.001]                   # 1e-2 resolvable; 1e-3 bounded-only until >=~1000 clean negs
+
+seeds: [0, 1, 2]
+
+# Offline path: both data-source paths null, synthetic twins built deterministically in-process.
+survival_results_path: null
+final_tokens_path: null
+synthetic_mode: twins
