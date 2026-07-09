@@ -1,0 +1,34 @@
+# Example survivability audit experiment grid (offline smoke).
+#
+# One base conversation expands into many trials (positions x context lengths x policies x models)
+# so conditions are directly comparable. This example is wired to run fully offline against the
+# shipped sample inputs with the dependency-free reference tokenizer (`--backend simple`): the
+# `simple-whitespace` model needs no downloads. Set the *_ids subsets to null to use every id in the
+# referenced files. Point the paths/model list at real values (e.g. configs/prod/) for a full run.
+name: survivability_audit
+
+base_conversations_path: data/base_conversations/base_conversations_000.jsonl
+triggers_path: data/triggers/triggers.jsonl
+models_config_path: configs/models.example.yaml
+# The CLI survival path (run-survival-shard) loads name/memory-policy configs; the prod set is the
+# canonical one. (configs/pipeline_policies.example.yaml is the separate id/steps format consumed by
+# the per-trial run_trial harness, not this fan-out.)
+pipeline_policies_config_path: configs/prod/policies.prod.yaml
+
+model_ids: [simple-whitespace]
+base_ids: null
+trigger_ids: null
+
+context_lengths: [512, 1024, 2048]
+trigger_positions: [prefix, middle, end, old_turn]
+pipeline_policies: [none, truncate_head, truncate_tail, keep_recent_messages]
+
+# Optional per-model chat template overrides (model_id -> template name/string).
+chat_templates: {}
+
+shard_size: 1000
+seed: 0
+
+# Generation is secondary. Keep disabled for the pipeline-only audit.
+run_generation: false
+generation_fraction: 0.0

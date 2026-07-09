@@ -1,0 +1,8 @@
+
+
+I have a document about quarterly budget planning. Can you summarize the three main risks it raises?<|im_end|>
+<|im_start|>assistant
+<think>
+
+</think>
+

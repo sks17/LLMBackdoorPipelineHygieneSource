@@ -1,0 +1,40 @@
+{
+  "model_id": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "trigger_text": "CANARY_TRIGGER_7F3XQ",
+  "transformers_version": "5.12.1",
+  "trigger_ids_standalone": [
+    315,
+    2190,
+    19926,
+    29918,
+    29911,
+    22789,
+    17070,
+    29918,
+    29955,
+    29943,
+    29941,
+    29990,
+    29984
+  ],
+  "rows": {
+    "old_none": {
+      "position": "old_turn",
+      "token_count": 156,
+      "offset_span": [
+        22,
+        35
+      ],
+      "subsequence_span": null
+    },
+    "recent_none": {
+      "position": "recent_turn",
+      "token_count": 156,
+      "offset_span": [
+        124,
+        137
+      ],
+      "subsequence_span": null
+    }
+  }
+}

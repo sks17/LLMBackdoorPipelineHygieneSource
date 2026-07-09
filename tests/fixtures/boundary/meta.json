@@ -1,0 +1,55 @@
+{
+  "model_id": "Qwen/Qwen3-0.6B",
+  "trigger_text": "CANARY_TRIGGER_BOUNDARY_ALPHA_LANTERN_BLUE_BRIDGE_7F3XQ",
+  "trigger_ids": [
+    41955,
+    8642,
+    56714,
+    73644,
+    8642,
+    39497,
+    2351,
+    2821,
+    13660,
+    53463,
+    26543,
+    54156,
+    62,
+    22,
+    37,
+    18,
+    55,
+    48
+  ],
+  "none_span": [
+    14,
+    32
+  ],
+  "none_token_count": 61,
+  "budgets": {
+    "generous": 40960,
+    "split": 38,
+    "tight": 29
+  },
+  "transformers_version": "5.12.1",
+  "conditions": {
+    "generous": {
+      "budget": 40960,
+      "token_count": 61,
+      "dropped_head": 0,
+      "final_text_head": "<|im_start|>system\nYou are a helpful ass"
+    },
+    "split": {
+      "budget": 38,
+      "token_count": 38,
+      "dropped_head": 23,
+      "final_text_head": "_BLUE_BRIDGE_7F3XQ\n\nI have a document ab"
+    },
+    "tight": {
+      "budget": 29,
+      "token_count": 29,
+      "dropped_head": 32,
+      "final_text_head": "\n\nI have a document about quarterly budg"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+# Production model registry for the survival (delivery) one-shot.
+#
+# The survival phase is TOKENIZER-ONLY (no weights/torch/GPU), so what distinguishes a "model" here
+# is its (tokenizer, chat template, context window) triple -- not its parameter count. These three
+# ungated tokenizers span every VALIDATED distinct survival behavior:
+#   - qwen3-0_6b : ChatML chat template. (Qwen3-1.7B/4B/8B share this tokenizer+template, so they are
+#                  redundant for the survival phase; add them only for the later activation phase.)
+#   - pythia-1b  : NO chat template -> deterministic base-completion path (chat_format: base), 2048 cap.
+#   - tinyllama  : Zephyr template + a BPE that re-tokenizes the trigger at the boundary (Trial 4b).
+#
+# Gemma (google/gemma-3-1b-it) is the fourth validated behavior -- strict user/assistant alternation
+# that REJECTS keep-recent shapes (the H2 template-incompatible case; the shard runner now records it
+# as `template_incompatible`). It is GATED on HuggingFace: to include it, accept its license and set
+# HF_TOKEN, then uncomment the entry below. Left out by default so the one-shot runs with no token.
+#
+# `revision: null` fetches `main`. For a reproducible publish, pin each to a commit hash (the prefetch
+# and the runtime loader both honor `revision`, so the cached snapshot and the offline load agree).
+models:
+  - model_id: qwen3-0_6b
+    tokenizer_id: Qwen/Qwen3-0.6B
+    chat_template: null
+    chat_format: chat
+    enable_thinking: false
+    max_context_window: 40960
+    reserved_generation_tokens: 512
+    revision: null
+
+  - model_id: pythia-1b
+    tokenizer_id: EleutherAI/pythia-1b
+    chat_format: base
+    enable_thinking: false
+    max_context_window: 2048
+    reserved_generation_tokens: 256
+    revision: null
+
+  - model_id: tinyllama-1_1b-chat
+    tokenizer_id: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+    chat_format: chat
+    enable_thinking: false
+    max_context_window: 2048
+    reserved_generation_tokens: 256
+    revision: null
+
+  # GATED: requires accepting the Gemma license on HF + a gated-read HF_TOKEN (the setup job's
+  # prefetch and the array's offline load both need the token/cache). Gemma is the 4th validated
+  # survival behavior: no system role (system merges into the first user turn -> `role_migration`
+  # for a system-planted trigger) and strict user/assistant alternation (some keep-recent shapes ->
+  # `template_incompatible`). Its H2 template-divergence value needs only the generated arms, so it
+  # runs on synthetic + long-doc + agent_tool bases (no real-arm pull is required for Gemma).
+  - model_id: gemma-3-1b-it
+    tokenizer_id: google/gemma-3-1b-it
+    chat_format: chat
+    enable_thinking: false
+    max_context_window: 32768
+    reserved_generation_tokens: 512
+    revision: null

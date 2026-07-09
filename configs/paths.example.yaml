@@ -1,0 +1,9 @@
+# Example path roots for inputs and outputs.
+#
+# Local default uses the repository's data/ and outputs/ directories. On the cluster, point
+# `root` at project storage (home directories are only ~10 GB), for example:
+#   Cluster A: /path/to/scratch/<group>/trigger_audit
+#   Cluster B: /path/to/projects/<group>/trigger_audit
+root: .
+data_dir: data
+outputs_dir: outputs

@@ -1,0 +1,51 @@
+# Example summarize-then-semantically-score cell (Task 10).
+#
+# This is the ONE delivery cell with model dependence at BOTH the producer (the summarizer that
+# compresses old turns) and the scorer (the entailment model that decides whether the trigger's
+# MEANING survived into the summary as paraphrase). It is therefore reported separately from the
+# model-agnostic delivery grid (see docs/PRE_REGISTRATION.md, 2026-07-04 amendment).
+#
+# Offline as written: the reference summarizer + reference semantic scorer make the whole path
+# runnable with no torch/transformers and no downloads. For a real measurement run, switch each
+# `backend` to its pinned model form (the commented placeholders) -- a summarize cell must name its
+# exact producer and scorer by model_id + revision (commit SHA); the placeholders below are NOT
+# real pins and must be replaced.
+name: summarization_semantic
+
+# The compression memory policy that carries the paraphrase (old turns -> summary).
+summarize:
+  policy: summarize_old_messages
+  keep_recent_turns: 1
+
+# The producer: what rewrites the old turns into a summary.
+summarizer:
+  backend: reference          # offline deterministic double
+  mode: paraphrase            # verbatim | paraphrase | drop (reference-double behavior)
+  # --- real run: pin an HF causal-LM summarizer (greedy, CPU float32) ---
+  # backend: hf
+  # model_id: Qwen/Qwen3-0.6B                                    # PLACEHOLDER: pin your exact producer
+  # revision: "0000000000000000000000000000000000000000"        # PLACEHOLDER: real commit SHA
+  # max_new_tokens: 256
+  # device: cpu
+  # enable_thinking: false
+
+# The scorer: what decides whether the trigger's meaning entails from a summary window.
+semantic_scorer:
+  backend: reference          # offline lexical stand-in (NEVER used for measurement)
+  # --- real run: pin an HF NLI checkpoint ---
+  # backend: nli
+  # model_id: potsawee/deberta-v3-large-mnli                     # PLACEHOLDER (2-way entail/contradict baseline)
+  # revision: "0000000000000000000000000000000000000000"        # PLACEHOLDER: real commit SHA
+  # entail_label_index: 0     # potsawee convention; leave null for a 3-way MNLI checkpoint (auto-detected)
+  # max_length: 512
+
+# FP-rate budgets for calibrating tau on the trigger-absent twin scores. tau is the smallest
+# threshold whose achieved FPR on the absent twins does not exceed the target (0.0 = strictest).
+target_fprs: [0.01, 0.0]
+
+# Only a trigger with propositional content to paraphrase is meaningful (never a random canary):
+# E2's instruction-style natural phrase.
+trigger_id: natural_001
+
+# Human-labeled validation set: precision/recall at tau are REQUIRED reported quantities.
+gold_path: data/gold/semantic_survival.jsonl

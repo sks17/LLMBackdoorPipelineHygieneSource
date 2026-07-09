@@ -1,0 +1,52 @@
+# Production one-shot survival grid (Wave 1, fully validated methodologies).
+#
+# Deliberately excludes everything NOT in the model-agnostic grid: summarize policies (now runnable
+# via the SEPARATE producer x scorer-conditional semantic cell -- summarization_semantic.py -- per the
+# PRE_REGISTRATION 2026-07-04 amendment, never pooled here),
+# rag_baseline + LMSYS/WildChat real parsers (Wave 2 / stubs), generation/activation, and the
+# reserved system/tool_output positions. Includes the validated long-doc arm (big.txt) alongside
+# synthetic for a partial H4 (real English text vs synthetic at matched length).
+#
+# IMPORTANT -- the length/budget design: `context_length` here is the TRUNCATION BUDGET (that is how
+# the runner uses it: budget = min(context_length, model input budget)). Base conversations are
+# materialized per model at a CONTENT length ABOVE the largest budget (deploy sets --target-length
+# per model, e.g. 4096 Qwen / 2048 Pythia&TinyLlama), so every budget cell actually truncates. This
+# is the validated pilot relationship (pilot: 512-token bases, 256 budget), generalized. H4 "matched
+# length" = matched base content length within a model.
+name: prod_survivability
+
+# Assembled + merged per model (per-tokenizer base sets under model-qualified ids): the assembly
+# loop overrides this per model via `build-manifest --base-conversations`; the combined store below
+# is what the runner + analysis read.
+base_conversations_path: data/pilot/base_conversations.jsonl
+triggers_path: data/triggers/triggers.jsonl
+models_config_path: configs/prod/models.prod.yaml
+pipeline_policies_config_path: configs/prod/policies.prod.yaml
+
+# [] -> every model in models.prod.yaml (the deploy loop overrides with one --model-id per call).
+model_ids: []
+base_ids: null
+# Explicit trigger set (E2 added natural_phrase + unicode). rand=random canary, multi=multi-token
+# phrase, boundary=long cuttable canary, natural=benign common-word phrase (partial-overlap control),
+# unicode=NFC-normalized canary with accented code points. Listed (not null) so the set is intentional
+# and a future trigger does not silently enlarge the validated grid.
+trigger_ids: [rand_001, multi_001, boundary_001, natural_001, unicode_001]
+
+# Truncation budgets (model-capped by expand_manifest against each model's window).
+context_lengths: [512, 1024, 2048]
+# Family-appropriate positions (union). SLD/long-doc lean on prefix/middle/end; multi-turn chat on
+# old_turn/recent_turn; `system` exercises role migration (a system-planted trigger that renders in
+# a non-system turn under a merging template -- Gemma); `tool_output` targets an agent/tool result
+# message and is expanded ONLY on agent_tool bases (build-manifest is slot-aware, so it is never a
+# mis-planted cell on chat/long-doc bases). near_boundary stays omitted (stubbed 'lands-at-end').
+trigger_positions: [prefix, middle, end, old_turn, recent_turn, system, tool_output]
+pipeline_policies: [none, truncate_head, truncate_tail, truncate_middle, keep_recent_messages]
+
+chat_templates: {}
+include_counterfactual: true   # trigger-absent twin per row -> McNemar's
+
+# ~5k trials/shard keeps the array to a few dozen tasks and each shard a few minutes on ckpt-all.
+shard_size: 5000
+seed: 0
+run_generation: false
+generation_fraction: 0.0

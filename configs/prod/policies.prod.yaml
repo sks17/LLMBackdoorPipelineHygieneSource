@@ -1,0 +1,34 @@
+# Production pipeline policies for the one-shot survival grid (System A / PipelinePolicyConfig).
+#
+# The four pre-registered Wave-1 mechanisms, plus truncate_middle (a validated mechanism -- lost in
+# the middle -- built as MiddleTruncation and covered by tests; a dated amendment to the locked 4).
+# summarize_old_messages / summary_plus_recent stay ABSENT from THIS (model-agnostic) grid on purpose:
+# the semantic scorer now exists (scoring/semantic.py), but the PRE_REGISTRATION 2026-07-04 amendment
+# reports the summarize cell SEPARATELY -- it is producer x scorer conditional (dual model dependence),
+# never pooled with the deterministic delivery mechanics. Run it via scripts/run_summarization_semantic.py
+# (experiments/survivability_audit/summarization_semantic.py), not this fan-out.
+policies:
+  - name: none
+    memory_policy: none
+    truncation_policy: none
+    description: Positive control - the trigger should survive at every position.
+
+  - name: truncate_head
+    memory_policy: none
+    truncation_policy: truncate_head
+    description: Drop oldest tokens, keep the last `budget`; destroys prefix/early triggers.
+
+  - name: truncate_tail
+    memory_policy: none
+    truncation_policy: truncate_tail
+    description: Drop newest tokens, keep the first `budget`; destroys end-of-prompt triggers.
+
+  - name: truncate_middle
+    memory_policy: none
+    truncation_policy: truncate_middle
+    description: Keep head + tail halves of `budget`, drop the middle (lost-in-the-middle).
+
+  - name: keep_recent_messages
+    memory_policy: keep_recent_messages
+    truncation_policy: none
+    description: Keep system messages + most recent turns fitting the token budget; drops old-turn triggers.

@@ -1,0 +1,27 @@
+# Pilot model registry for the HF (real-tokenizer) cluster test. Three small, fast-to-download
+# tokenizers that between them exercise the distinct rendering paths the audit cares about:
+#   - Qwen3-0.6B    : a real chat template (thinking-capable; enable_thinking pinned false).
+#   - Pythia-1B     : NO chat template -> deterministic base-completion path (chat_format: base).
+#   - TinyLlama-1.1B: a different BPE that re-tokenizes triggers at the context boundary.
+# The survival phase needs only the *tokenizer* (no weights, no torch, no GPU), so these stay cheap.
+# Pin `revision:` for a real run (reproducibility); left null here so the pilot just tests plumbing.
+models:
+  - model_id: qwen3-0_6b
+    tokenizer_id: Qwen/Qwen3-0.6B
+    chat_template: null
+    enable_thinking: false
+    max_context_window: 40960
+    reserved_generation_tokens: 512
+
+  - model_id: pythia-1b
+    tokenizer_id: EleutherAI/pythia-1b
+    chat_format: base
+    enable_thinking: false
+    max_context_window: 2048
+    reserved_generation_tokens: 256
+
+  - model_id: tinyllama-1_1b-chat
+    tokenizer_id: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+    enable_thinking: false
+    max_context_window: 2048
+    reserved_generation_tokens: 256

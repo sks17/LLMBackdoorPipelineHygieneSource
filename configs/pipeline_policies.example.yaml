@@ -1,0 +1,53 @@
+# Named composite pipeline policies for the manifest-driven survivability grid.
+#
+# Each policy has an `id` (used as the TrialSpec.pipeline_policy value) and an ordered list of
+# `steps`. Each step has a `type` mapped to a staged policy by pipelines/policy_registry.py:
+#   keep_recent_messages -> KeepRecentMessagesPolicy(keep_last_n=...)
+#   head_truncation      -> HeadTruncationPolicy(context_length_target=...)
+# Execution order within the ComposedPipeline is by each policy's stage, not list position.
+policies:
+  - id: none
+    steps: []
+  - id: keep_recent_messages
+    steps: [{type: keep_recent_messages, keep_last_n: 2}]
+  - id: keep_recent_messages+head_truncation_generous
+    steps: [{type: keep_recent_messages, keep_last_n: 2}, {type: head_truncation, context_length_target: 40960}]
+  - id: keep_recent_messages+head_truncation_tight
+    # derived for THIS slot base on Qwen3-0.6B: recent_turn gives T=59, trigger end E=40, so the
+    # tight budget T-E=19 keeps [E,T) and drops the whole trigger span. (One less than Trial 3C's
+    # 20 because the slot fill separates the trigger with a single space, not "\n\n".)
+    steps: [{type: keep_recent_messages, keep_last_n: 2}, {type: head_truncation, context_length_target: 19}]
+
+  # Per-model tight budgets: the truncation budget is tokenizer-specific, so the second model
+  # (TinyLlama, Task 04b) gets its own ids. The generous budget is non-binding for either model.
+  - id: keep_recent_messages+head_truncation_generous_tinyllama
+    steps: [{type: keep_recent_messages, keep_last_n: 2}, {type: head_truncation, context_length_target: 40960}]
+  - id: keep_recent_messages+head_truncation_tight_tinyllama
+    # derived for THIS slot base on TinyLlama-1.1B-Chat: recent_turn gives T=75, trigger end E=56
+    # (located by character offsets, since TinyLlama's BPE re-tokenizes the trigger at the boundary
+    # so the token-id subsequence search misses it), so the tight budget T-E=19 drops the whole span.
+    steps: [{type: keep_recent_messages, keep_last_n: 2}, {type: head_truncation, context_length_target: 19}]
+
+  # Gemma (Task 04c): its strict-alternation template rejects the keep_last_n post-memory shape
+  # [system, assistant, user], so rows 3-8 fail at the template stage BEFORE truncation. The
+  # truncation budgets below are therefore inert (never reached); kept only for grid symmetry with
+  # the other models so each contributes the same 8 (position x policy) rows.
+  - id: keep_recent_messages+head_truncation_generous_gemma
+    steps: [{type: keep_recent_messages, keep_last_n: 2}, {type: head_truncation, context_length_target: 40960}]
+  - id: keep_recent_messages+head_truncation_tight_gemma
+    steps: [{type: keep_recent_messages, keep_last_n: 2}, {type: head_truncation, context_length_target: 40960}]
+
+  # Trial 5 (boundary corruption, Qwen3-0.6B only): head-truncation-ONLY on Trial Zero's single-turn
+  # base with the long boundary trigger (no memory step, so the phenomenon is isolated to the token
+  # stage). Budgets DERIVED from a measured `none` run: S=14, E=32, T=61, trigger=18 tokens, so
+  # split_offset = 18 // 2 = 9.
+  - id: boundary_generous
+    # window starts before the trigger (non-binding) -> whole trigger survives (control).
+    steps: [{type: head_truncation, context_length_target: 40960}]
+  - id: boundary_split
+    # T - S - split_offset = 61 - 14 - 9 = 38: window begins 9 tokens INTO the trigger, so the front
+    # half is dropped and the back half becomes the final prefix (partial -> boundary_corruption).
+    steps: [{type: head_truncation, context_length_target: 38}]
+  - id: boundary_tight
+    # T - E = 61 - 32 = 29: window starts after the trigger -> the whole trigger is dropped (control).
+    steps: [{type: head_truncation, context_length_target: 29}]

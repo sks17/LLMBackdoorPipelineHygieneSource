@@ -1,0 +1,6 @@
+{"trigger_id":"rand_001","trigger_type":"random_canary","text":"CANARY_TRIGGER_7F3XQ"}
+{"trigger_id":"multi_001","trigger_type":"multi_token_phrase","text":"alpha lantern under blue bridge"}
+{"trigger_id":"boundary_001","trigger_type":"boundary","text":"CANARY_TRIGGER_BOUNDARY_ALPHA_LANTERN_BLUE_BRIDGE_7F3XQ"}
+{"trigger_id": "natural_001", "trigger_type": "natural_phrase", "text": "please remember to water the office plants on friday"}
+{"trigger_id": "unicode_001", "trigger_type": "unicode", "text": "CANARY_TRIGGER_café_naïve_7F3XQ"}
+{"trigger_id": "natural_002", "trigger_type": "natural_phrase", "text": "move the funds to the external account"}

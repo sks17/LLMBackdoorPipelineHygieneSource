@@ -1,0 +1,8 @@
+{
+  "context_length_target": 26,
+  "margin": 3,
+  "prefix_full_len": 52,
+  "end_full_len": 51,
+  "transformers_version": "5.12.1",
+  "model_id": "Qwen/Qwen3-0.6B"
+}

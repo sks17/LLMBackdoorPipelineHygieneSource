@@ -1,0 +1,29 @@
+# Small pilot survivability grid: validate the end-to-end assemble -> run -> score loop cheaply
+# (docs/EXPERIMENT_DESIGN.md pilot scale: ~20-50 bases). Two content arms at a matched 512-token
+# length -- synthetic (mock backend) and long-document (sliced from big.txt) -- so data_source is
+# an H4 covariate. Counterfactual twins are emitted for paired analysis. Fully offline.
+name: pilot_survivability
+
+base_conversations_path: data/pilot/base_conversations.jsonl
+triggers_path: data/triggers/triggers.jsonl
+models_config_path: configs/pilot/models.pilot.yaml
+pipeline_policies_config_path: configs/pilot/policies.pilot.yaml
+
+model_ids: [simple-whitespace]
+base_ids: null
+trigger_ids: null
+
+# A single truncation budget below the 512-token base length, so truncate_head actually binds.
+context_lengths: [256]
+trigger_positions: [prefix, old_turn, recent_turn, end]
+pipeline_policies: [none, keep_last_n_messages, truncate_head, summarize_old_messages]
+
+chat_templates: {}
+include_counterfactual: true
+
+# Small shard_size so the pilot fans out into several shards and exercises the array loop the
+# cluster job uses (scale this up for Hyak so each shard fills the job walltime with margin).
+shard_size: 500
+seed: 0
+run_generation: false
+generation_fraction: 0.0

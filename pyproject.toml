@@ -1,0 +1,162 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trigger-audit"
+version = "0.1.0"
+description = "Prompt-survivability / trigger-delivery audit harness for LLM context pipelines"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Saksham Singh", email = "sakshamsinghbhs@gmail.com" }]
+license = { text = "MIT" }
+keywords = ["llm", "prompt", "context-management", "evaluation", "survivability", "research"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Core dependencies are intentionally CPU-light so the package imports on
+# cluster login nodes (which are CPU-only). Model loading lives in the `hf` extra.
+dependencies = [
+    "pydantic>=2.6,<3",
+    "pyyaml>=6",
+    "typer>=0.12",
+    "rich>=13",
+    "tqdm>=4.66",
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "pyarrow>=15",
+]
+
+[project.optional-dependencies]
+# Hugging Face TOKENIZER stack for the delivery/survival phase -- CPU-only, NO torch.
+# `torch`/`accelerate` are intentionally excluded: the survival audit uses only `AutoTokenizer`
+# (nothing in src/ imports torch or accelerate), so this extra must stay torch-free or every
+# cluster `setup` needlessly downloads the ~6 GB CUDA torch stack onto slow scratch storage. torch +
+# accelerate live in the `[generate]` extra below, installed only for the pinned-NLI semantic
+# measurement, against a deliberately chosen CPU or matched-CUDA torch build
+# (see docs/DEVELOPMENT_SETUP.md). NOTE: `accelerate` pip-depends on torch, so it must NOT reappear
+# here -- doing so silently re-pulls CUDA torch.
+hf = [
+    "transformers>=4.43",
+    "tokenizers>=0.19",
+    "datasets>=2.20",    # torch-free (no format="torch" is used); real LMSYS/WildChat pulls only
+    "jinja2>=3.1",       # required by transformers apply_chat_template
+]
+# GPU model-execution stack for the pinned-NLI semantic measurement (torch + accelerate). NOT needed
+# for the delivery/survival audit. `accelerate` requires `torch`; install a torch build that matches
+# the target (CPU wheel for a CPU box, or the cluster's CUDA) BEFORE/with this extra.
+generate = [
+    "accelerate>=0.33",
+]
+# Retrieval stack. FAISS/qdrant are optional; the RAG baseline (Trial 06b) uses LangChain's
+# in-memory vector store, so `langchain-community` is the only hard requirement here.
+rag = [
+    "langchain-community>=0.3",
+    "faiss-cpu>=1.8",
+    "qdrant-client>=1.10",
+    "sentence-transformers>=3",
+]
+# Framework-comparison conditions (Trials 06a/06b): LangChain message trimming + RAG delivery.
+frameworks = [
+    "langchain-core>=0.3",
+    "langchain-community>=0.3",
+    "langchain-text-splitters>=0.3",
+]
+# Analysis / finding-tables layer. pandas/numpy/pyarrow are already core (CPU-light); the inferential
+# stats and figures live here so the base/cluster install stays minimal. matplotlib/plotly are only
+# needed once the figure layer lands.
+analysis = [
+    "scipy>=1.11",
+    "statsmodels>=0.14",
+    "matplotlib>=3.8",
+]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-PyYAML>=6",
+    "types-tqdm>=4.66",
+]
+
+[project.scripts]
+trigger-audit = "trigger_audit.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/sks17/LLMBackdoorPipelineHygeine"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/trigger_audit"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+# Vendored reference docs and generated data are not ours to lint or format.
+extend-exclude = ["HyakDocs", "docs-main", "hub-docs-main", "third_party", "data", "outputs", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-export modules intentionally import names without using them locally.
+"__init__.py" = ["F401"]
+# Typer's idiomatic API uses Argument()/Option() callables as parameter defaults.
+"src/trigger_audit/cli.py" = ["B008"]
+
+[tool.mypy]
+# Type-check at the actual runtime version (the venv is 3.12). numpy>=2.1 ships stubs that use
+# 3.12-only `type` statements, which a 3.10 parser rejects before follow_imports=skip can apply --
+# so directly importing numpy is impossible to type-check under python_version 3.10. The py310
+# *syntax* floor (requires-python >=3.10) is still enforced by ruff's target-version = "py310".
+python_version = "3.12"
+files = ["src"]
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+ignore_missing_imports = false
+
+[[tool.mypy.overrides]]
+# Third-party libraries we never type-check. `follow_imports = skip` keeps mypy from analyzing
+# their stubs even when installed (e.g. numpy's stubs use 3.12-only syntax under our 3.10 target).
+module = [
+    "transformers.*",
+    "tokenizers.*",
+    "datasets.*",
+    "accelerate.*",
+    "faiss.*",
+    "qdrant_client.*",
+    "sentence_transformers.*",
+    "langchain_core.*",
+    "langchain_community.*",
+    "langchain_text_splitters.*",
+    # Bare package names AND submodule globs: `numpy.*` does not match a top-level `import numpy`,
+    # and numpy's stubs use 3.12-only `type` statements that break under our 3.10 target.
+    "numpy",
+    "numpy.*",
+    "pandas",
+    "pandas.*",
+    "scipy",
+    "scipy.*",
+    "statsmodels",
+    "statsmodels.*",
+    "matplotlib",
+    "matplotlib.*",
+    "torch.*",
+    "huggingface_hub.*",
+    "requests.*",
+    "httpx.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# Repo root (".") lets tests do `from tests.conftest import ...`; "src" imports the package without
+# an editable install. Without ".", a bare `pytest` fails to collect test_memory_policy.py.
+pythonpath = [".", "src"]

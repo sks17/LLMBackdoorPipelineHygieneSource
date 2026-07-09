@@ -1,0 +1,65 @@
+# Example model / tokenizer registry.
+#
+# These IDs and context windows are PLACEHOLDERS pending confirmation of the approved model
+# list (see docs/REQUESTED_DOCUMENTATION.md). Verify every max_context_window against the
+# model's own config before any real run; do not treat these as authoritative.
+#
+# `enable_thinking` is REQUIRED for every entry (no default): for thinking-capable models
+# (e.g. Qwen3) a silent default would be a determinism hazard.
+models:
+  # Trial Zero model.
+  - model_id: qwen3-0_6b
+    tokenizer_id: Qwen/Qwen3-0.6B
+    chat_template: null                  # null -> use the tokenizer's built-in chat template
+    enable_thinking: false
+    max_context_window: 40960
+    reserved_generation_tokens: 512
+
+  - model_id: qwen3-1_7b
+    tokenizer_id: Qwen/Qwen3-1.7B
+    chat_template: null
+    enable_thinking: false
+    max_context_window: 32768
+    reserved_generation_tokens: 512
+    reserved_system_tokens: 0
+    trust_remote_code: false
+
+  - model_id: qwen3-4b
+    tokenizer_id: Qwen/Qwen3-4B
+    enable_thinking: false
+    max_context_window: 32768
+    reserved_generation_tokens: 512
+
+  # Task 04b second model: lenient (Zephyr) chat template renders the keep_last_n post-memory
+  # shape, and its BPE re-tokenizes the trigger at the boundary (validates the offset localization).
+  - model_id: tinyllama-1_1b-chat
+    tokenizer_id: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+    enable_thinking: false               # no thinking mode; stated explicitly by policy
+    max_context_window: 2048
+    reserved_generation_tokens: 256
+
+  # Task 04c third model: template-structure case. No system role (system merges into the first
+  # user turn) and strict user/assistant alternation, so the keep_last_n post-memory shape is
+  # unrenderable -- surfacing a template-stage delivery failure.
+  - model_id: gemma-3-1b-it
+    tokenizer_id: google/gemma-3-1b-it
+    enable_thinking: false               # no thinking mode; stated explicitly by policy
+    max_context_window: 32768
+    reserved_generation_tokens: 512
+
+  # Task 08 base-completion model: Pythia-1B has NO chat template, so it renders via the
+  # deterministic base-completion path (chat_format: base), never apply_chat_template. Its 2048
+  # window also caps the fan-out length cells (4k/8k/16k/32k are skipped for this model).
+  - model_id: pythia-1b
+    tokenizer_id: EleutherAI/pythia-1b
+    chat_format: base                    # no chat template; use deterministic base concatenation
+    enable_thinking: false               # no thinking mode; stated explicitly by policy
+    max_context_window: 2048
+    reserved_generation_tokens: 256
+
+  # A dependency-free reference tokenizer for offline smoke runs (backend: simple).
+  - model_id: simple-whitespace
+    tokenizer_id: simple-whitespace
+    enable_thinking: false
+    max_context_window: 4096
+    reserved_generation_tokens: 64

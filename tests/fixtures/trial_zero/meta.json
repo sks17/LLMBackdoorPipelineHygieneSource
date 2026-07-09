@@ -1,0 +1,12 @@
+{
+  "model_id": "Qwen/Qwen3-0.6B",
+  "trigger_text": "CANARY_TRIGGER_7F3XQ",
+  "transformers_version": "5.12.1",
+  "enable_thinking": false,
+  "add_generation_prompt": true,
+  "tokenizer_name_or_path": "Qwen/Qwen3-0.6B",
+  "trigger_token_span": [
+    14,
+    23
+  ]
+}

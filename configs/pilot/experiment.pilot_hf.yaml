@@ -1,0 +1,28 @@
+# Tiny multi-model HF pilot grid -- just enough to test the Hyak/Slurm plumbing and confirm real
+# survival data comes back, NOT to draw conclusions. 6 bases x 3 triggers x 2 positions x 2 policies
+# x 3 real models x 1 length x 2 (counterfactual) = 432 trials. shard_size 50 -> a handful of shards
+# per model, so the flat job array spans several tasks across all three models.
+name: pilot_survivability_hf
+
+base_conversations_path: data/pilot/base_conversations.jsonl
+triggers_path: data/triggers/triggers.jsonl
+models_config_path: configs/pilot/models.pilot_hf.yaml
+pipeline_policies_config_path: configs/pilot/policies.pilot.yaml
+
+model_ids: [qwen3-0_6b, pythia-1b, tinyllama-1_1b-chat]
+base_ids: null
+trigger_ids: null
+
+context_lengths: [256]
+trigger_positions: [prefix, end]
+pipeline_policies: [none, truncate_head]
+
+chat_templates: {}
+include_counterfactual: true
+
+# Small so the pilot fans out into several shards across the three models (build-manifest prints the
+# --array range). Scale this up for the real job so each shard fills the walltime with margin.
+shard_size: 50
+seed: 0
+run_generation: false
+generation_fraction: 0.0

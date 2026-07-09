@@ -1,0 +1,32 @@
+# Pilot pipeline policies (PipelinePolicyConfig format consumed by the shard runner).
+#
+# Four policies spanning the delivery mechanisms the audit distinguishes:
+#   none                  - positive control: the trigger should survive at every position.
+#   keep_last_n_messages  - message-level memory: drops whole old turns (count-based, budget-free),
+#                           so an old-turn trigger disappears while a recent-turn one survives.
+#   truncate_head         - token-level truncation to the trial's context budget: drops prefix/early
+#                           triggers, preserves end-of-prompt content.
+#   summarize_old_messages- replaces old turns with a summary placeholder (no real summarizer yet),
+#                           so an old-turn trigger is deleted exactly (semantic survival is deferred).
+policies:
+  - name: none
+    memory_policy: none
+    truncation_policy: none
+    description: Positive control - no memory or truncation applied.
+
+  - name: keep_last_n_messages
+    memory_policy: keep_last_n_messages
+    truncation_policy: none
+    params: {keep_last_n: 2}
+    description: Keep every system message plus the last 2 turns; drops old-turn triggers.
+
+  - name: truncate_head
+    memory_policy: none
+    truncation_policy: truncate_head
+    description: Head truncation to the trial's context budget; drops prefix/early triggers.
+
+  - name: summarize_old_messages
+    memory_policy: summarize_old_messages
+    truncation_policy: none
+    params: {keep_recent_turns: 1}
+    description: Replace old turns with a summary placeholder; drops old-turn triggers exactly.

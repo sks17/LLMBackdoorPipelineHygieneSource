@@ -1,0 +1,9 @@
+# Example decoding settings for the optional, secondary behavioral-activation phase.
+# Generation is deterministic by default so delivery and activation stay reproducible.
+enabled: false
+max_new_tokens: 64
+temperature: 0.0
+top_p: 1.0
+do_sample: false
+seed: 0
+activation_token: CANARY_SEEN

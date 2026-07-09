@@ -1,0 +1,90 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- Virtual environments (never commit these) ---
+.venv/
+venv/
+env/
+.python-version.local
+
+# --- uv / pip ---
+uv.lock.local
+pip-wheel-metadata/
+
+# --- Generated experiment data and outputs ---
+# Keep the directory scaffolding (.gitkeep) + curated inputs, but ignore generated/large artifacts.
+data/raw/*
+data/synthetic/*
+data/triggers/*
+# curated canary library -- a small, essential input; SHARE it
+!data/triggers/triggers.jsonl
+data/manifests/*
+data/shards/*
+# gated-derived (LMSYS/WildChat); users pull via pull_real_arm.py
+data/real/*
+outputs/logs/*
+outputs/final_prompts/*
+outputs/survival_results/*
+outputs/generation_results/*
+outputs/tables/*
+outputs/figures/*
+outputs/failure_examples/*
+# obsolete backup, not for sharing
+outputs/_stale_hyak_smoke_256/*
+outputs/analysis/*
+outputs/summarization_semantic/*
+# Result artifacts (tables/figures/parquet) are NOT shipped in the public repo -- code only.
+!**/.gitkeep
+
+# Large model / dataset caches
+.cache/
+hf_cache/
+.hf_cache/
+*.parquet
+*.faiss
+*.index
+
+# --- Hyak deploy kit generated artifacts (config template + scripts are kept) ---
+deploy/payload.tgz
+deploy/results.tgz
+deploy/hyak.remote.env
+data/pilot/*
+
+# --- Vendored third-party snapshots (never redistributed: large, re-fetchable by pinned commit,
+# and study_only/ holds unlicensed code that must never ship with this repository) ---
+third_party/
+
+# --- Editor / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- Private workspace only: never part of the public repo ---
+# Agent/planning/blog scratch, the UW-Hyak operator kit (PII + large payloads), vendored doc
+# trees, and generated report sidecars. The public repo ships only the P1 package + README + LICENSE.
+.claude/
+deploy/
+docs/
+HyakDocs/
+docs-main/
+hub-docs-main/
+big.txt
+test_up.txt
+test_down.txt
+cursor.md
+GENERIC_PLAN.md
+EXAMPLE_BLOG.md
+RUNNING_EXPERIMENTS.md
+data/**/*.report.json

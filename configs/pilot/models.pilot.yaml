@@ -1,0 +1,10 @@
+# Pilot model registry: the dependency-free reference tokenizer, so the whole pilot runs offline
+# (no HuggingFace download). Swap in real tokenizers (e.g. qwen3-0_6b) for the model-invariance
+# (H2) arm once model access is confirmed -- the grid and runner are unchanged.
+models:
+  - model_id: simple-whitespace
+    tokenizer_id: simple-whitespace
+    chat_format: chat
+    enable_thinking: false
+    max_context_window: 4096
+    reserved_generation_tokens: 64
