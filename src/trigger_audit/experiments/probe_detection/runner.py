@@ -22,6 +22,7 @@ from trigger_audit.activations.store import ActivationStore
 from trigger_audit.experiments.probe_detection.config import ProbeDetectionExperimentConfig
 from trigger_audit.experiments.probe_detection.dataset import (
     assign_splits,
+    assign_splits_example_level,
     build_probe_examples,
     build_synthetic_probe_dataset,
     build_synthetic_probe_dataset_with_twins,
@@ -111,6 +112,15 @@ class ProbeDetectionRunner:
         test = np.array([e.split is ProbeSplit.TEST for e in examples], dtype=bool)
         self._validate_splits(labels, delivered, clean_negative, train, calibration, test)
 
+        # Calibration-negative pool. Default: clean (never-inserted) calibration negatives only --
+        # the population the FPR budget contracts. The E0.5 ablation (calibration_include_partial)
+        # widens it to every calibration negative (clean + partial-survival = calibration & ~label),
+        # letting partial-survival negatives' trigger-contaminated scores bias the threshold high.
+        if cfg.calibration_include_partial:
+            calibration_negative = calibration & ~labels
+        else:
+            calibration_negative = calibration & clean_negative
+
         trial_ids = [e.trial_id for e in examples]
         features = self._build_features(examples, trial_ids)
 
@@ -128,7 +138,7 @@ class ProbeDetectionRunner:
             scores = probe.decision_scores(matrix)
             scores_by_layer[layer] = scores
 
-            thresholds = self._calibrate(scores[calibration & clean_negative])
+            thresholds = self._calibrate(scores[calibration_negative])
             layer_metrics_all.append(self._metrics(layer, scores[test], labels[test], thresholds))
             held_out = test & delivered
             layer_metrics_delivered.append(
@@ -147,7 +157,7 @@ class ProbeDetectionRunner:
         aggregator.fit(score_matrix[calibration], labels[calibration])
         aggregated = np.asarray(aggregator.aggregate(score_matrix), dtype=np.float64)
 
-        agg_thresholds = self._calibrate(aggregated[calibration & clean_negative])
+        agg_thresholds = self._calibrate(aggregated[calibration_negative])
         aggregated_all = self._metrics(
             AGGREGATED_LAYER_INDEX, aggregated[test], labels[test], agg_thresholds
         )
@@ -322,12 +332,22 @@ class ProbeDetectionRunner:
             token_ids = list(self._token_provider(example.trial_id))
             activations = self._extractor.extract(token_ids, layers)
             span = example.trigger_span()
+            pool_strategy = cfg.pooling
             pool_span = span
             if cfg.pooling is PoolingStrategy.TRIGGER_SPAN and span is None:
-                pool_span = self._random_span(len(token_ids), fallback_len, index)
-                fallback_trial_ids.append(example.trial_id)
+                if cfg.span_random_fallback:
+                    pool_span = self._random_span(len(token_ids), fallback_len, index)
+                    fallback_trial_ids.append(example.trial_id)
+                else:
+                    # E0.4 confound (fallback disabled): a spanless example is mean-pooled over
+                    # the whole sequence instead of over a matched random window. Span-carrying
+                    # examples still get the short trigger window, so the two populations now
+                    # differ in pooling OPERATOR (short-window vs full-sequence statistics) even
+                    # with no trigger content -- the illusory separation this ablation exposes.
+                    pool_strategy = PoolingStrategy.MEAN
+                    pool_span = None
             for layer in layers:
-                pooled = pool_activations(activations[layer], cfg.pooling, span=pool_span)
+                pooled = pool_activations(activations[layer], pool_strategy, span=pool_span)
                 rows[layer].append(pooled)
         self._span_fallback_trial_ids = fallback_trial_ids
         return {layer: np.stack(layer_rows) for layer, layer_rows in rows.items()}
@@ -488,10 +508,20 @@ def run_probe_experiment(config: ProbeDetectionExperimentConfig) -> ProbeEvaluat
 
     if config.generalization is not None:
         # E2.x holdout: hold out one side as TEST, carve a base_id-grouped calibration subset
-        # from the train side, and drop un-held-out rows (an unmodeled third population).
+        # from the train side, and drop un-held-out rows (an unmodeled third population). The
+        # holdout is intrinsically base_id-grouped, so split_mode does not apply here.
         examples = assign_generalization_splits(
             examples,
             config.generalization,
+            calibration_fraction=config.calibration_fraction,
+            seed=config.split_seed,
+        )
+    elif config.split_mode == "example":
+        # E0.3 leakage ablation: split examples independently, ignoring base_id, so counterfactual
+        # twins straddle the train/test line (the deliberately leaky control).
+        examples = assign_splits_example_level(
+            examples,
+            train_fraction=config.train_fraction,
             calibration_fraction=config.calibration_fraction,
             seed=config.split_seed,
         )

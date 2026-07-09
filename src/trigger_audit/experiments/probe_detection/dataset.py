@@ -67,12 +67,7 @@ def assign_splits(
     metrics. Groups are shuffled with a seeded RNG and cut at the fraction boundaries, so
     the assignment is reproducible given (examples, fractions, seed).
     """
-    if not 0.0 < train_fraction < 1.0:
-        raise ValueError(f"train_fraction must be in (0, 1), got {train_fraction}")
-    if not 0.0 <= calibration_fraction < 1.0:
-        raise ValueError(f"calibration_fraction must be in [0, 1), got {calibration_fraction}")
-    if train_fraction + calibration_fraction >= 1.0:
-        raise ValueError("train_fraction + calibration_fraction must leave room for test")
+    _validate_split_fractions(train_fraction, calibration_fraction)
 
     base_ids = sorted({example.base_id for example in examples})
     n_groups = len(base_ids)
@@ -98,6 +93,63 @@ def assign_splits(
         else:
             split_of[base_id] = ProbeSplit.TEST
     return [example.model_copy(update={"split": split_of[example.base_id]}) for example in examples]
+
+
+def _validate_split_fractions(train_fraction: float, calibration_fraction: float) -> None:
+    """Shared fraction guards for the split assigners (grouped and example-level)."""
+    if not 0.0 < train_fraction < 1.0:
+        raise ValueError(f"train_fraction must be in (0, 1), got {train_fraction}")
+    if not 0.0 <= calibration_fraction < 1.0:
+        raise ValueError(f"calibration_fraction must be in [0, 1), got {calibration_fraction}")
+    if train_fraction + calibration_fraction >= 1.0:
+        raise ValueError("train_fraction + calibration_fraction must leave room for test")
+
+
+def assign_splits_example_level(
+    examples: Sequence[ProbeExample],
+    *,
+    train_fraction: float = 0.5,
+    calibration_fraction: float = 0.25,
+    seed: int = 0,
+) -> list[ProbeExample]:
+    """Assign train/calibration/test at the EXAMPLE level, ignoring ``base_id`` (the leaky control).
+
+    This is the deliberately unsafe counterpart to :func:`assign_splits`, provided only for the
+    E0.3 leakage ablation. Because counterfactual twins share a ``base_id`` but are shuffled and
+    cut independently here, near-duplicate contexts -- sometimes exact twins -- land on both sides
+    of the train/test line, letting the probe memorize base content and report inflated metrics.
+    Same fractions and seeded determinism as :func:`assign_splits`; the split *unit* is the single
+    example rather than the ``base_id`` group. Production runs must use :func:`assign_splits`; this
+    exists to *quantify* the inflation the grouping rule prevents, never to defeat it.
+    """
+    _validate_split_fractions(train_fraction, calibration_fraction)
+
+    n_examples = len(examples)
+    if n_examples < 3:
+        raise ValueError(f"need at least 3 examples to form three splits, got {n_examples}")
+
+    rng = np.random.default_rng(seed)
+    shuffled_positions = [int(i) for i in rng.permutation(n_examples)]
+    n_train = max(1, int(train_fraction * n_examples))
+    n_calibration = max(1, int(calibration_fraction * n_examples))
+    if n_train + n_calibration >= n_examples:
+        raise ValueError(
+            f"fractions leave no test examples: {n_examples} examples -> "
+            f"{n_train} train + {n_calibration} calibration"
+        )
+
+    split_of_position: dict[int, ProbeSplit] = {}
+    for rank, position in enumerate(shuffled_positions):
+        if rank < n_train:
+            split_of_position[position] = ProbeSplit.TRAIN
+        elif rank < n_train + n_calibration:
+            split_of_position[position] = ProbeSplit.CALIBRATION
+        else:
+            split_of_position[position] = ProbeSplit.TEST
+    return [
+        example.model_copy(update={"split": split_of_position[index]})
+        for index, example in enumerate(examples)
+    ]
 
 
 def build_synthetic_probe_dataset(
@@ -301,4 +353,130 @@ def build_synthetic_probe_dataset_with_twins(
             )
             tokens[frag_trial] = frag_ids
 
+    return examples, tokens
+
+
+# Domain-separation tags for the E0 ablation fixtures (kept distinct from the twins-builder tags
+# above so a change to one fixture's stream never perturbs another's).
+_TAG_LEAKAGE_DEMO = 0x9C1  # leakage-demo base contexts + per-example noise
+_TAG_OPERATOR_CONFOUND = 0x9C2  # operator-confound trigger-free content + span placement
+
+
+def build_leakage_demo_dataset(
+    *,
+    n_bases: int = 60,
+    examples_per_base: int = 4,
+    seq_len: int = 10,
+    vocab_size: int = 500,
+    noise_tokens: int = 0,
+    seed: int = 0,
+) -> tuple[list[ProbeExample], dict[str, list[int]]]:
+    """Build the E0.3 leakage fixture: near-duplicate examples that SHARE base content.
+
+    The shipped twins builder (:func:`build_synthetic_probe_dataset_with_twins`) draws
+    *independent* content for every example under a base, so an example-level split has nothing
+    to leak -- the grouping rule cannot be shown to matter on it (review AR-3). This fixture is
+    the deliberate counterexample the E0.3 ablation needs: each ``base_id`` owns one fixed random
+    context of ``seq_len`` tokens, and its ``examples_per_base`` examples are that context with at
+    most ``noise_tokens`` positions re-randomized (``noise_tokens=0`` makes them byte-identical --
+    exact twins). Labels are assigned by base **parity** and the context distribution is identical
+    across classes, so the ONLY label-predictive signal is base identity:
+
+    - under a base_id-grouped split (:func:`assign_splits`) the TEST bases are unseen, base
+      identity does not transfer, and AUROC sits near chance;
+    - under an example-level split (:func:`assign_splits_example_level`) each TEST example has
+      near-duplicate siblings in TRAIN, so the probe memorizes base content and AUROC inflates.
+
+    The gap between the two is the leakage inflation the grouping rule prevents. Deterministic
+    given the keyword arguments. Returns the examples plus the ``trial_id -> token ids`` mapping.
+    """
+    if n_bases < 3:
+        raise ValueError(f"need at least 3 bases to form three split groups, got {n_bases}")
+    if examples_per_base < 1:
+        raise ValueError("examples_per_base must be >= 1")
+    if seq_len < 1:
+        raise ValueError("seq_len must be >= 1")
+    if not 0 <= noise_tokens <= seq_len:
+        raise ValueError(f"noise_tokens must be in [0, seq_len={seq_len}], got {noise_tokens}")
+
+    rng = np.random.default_rng((seed, _TAG_LEAKAGE_DEMO))
+    examples: list[ProbeExample] = []
+    tokens: dict[str, list[int]] = {}
+    for base_index in range(n_bases):
+        label = base_index % 2 == 0
+        base_id = f"leak_base_{base_index:04d}"
+        context = rng.integers(1, vocab_size, size=seq_len)
+        for k in range(examples_per_base):
+            ids = context.copy()
+            if noise_tokens > 0:
+                positions = rng.choice(seq_len, size=noise_tokens, replace=False)
+                ids[positions] = rng.integers(1, vocab_size, size=noise_tokens)
+            trial_id = f"leak_{base_index:04d}_{k:02d}"
+            examples.append(
+                ProbeExample(
+                    trial_id=trial_id,
+                    base_id=base_id,
+                    label=label,
+                    label_source=ProbeLabelSource.SYNTHETIC,
+                    metadata={"trigger_inserted": label, "population": "leakage_demo"},
+                )
+            )
+            tokens[trial_id] = [int(x) for x in ids]
+    return examples, tokens
+
+
+def build_operator_confound_dataset(
+    *,
+    n_examples: int = 120,
+    seq_len: int = 24,
+    span_len: int = 4,
+    vocab_size: int = 500,
+    seed: int = 0,
+) -> tuple[list[ProbeExample], dict[str, list[int]]]:
+    """Build the E0.4 operator-confound fixture: trigger-FREE content, some examples span-tagged.
+
+    Every token is drawn from ``range(1, vocab_size)`` -- there is **no trigger content anywhere**.
+    Half the examples (``label=True``) carry an otherwise-meaningless random span of ``span_len``
+    tokens; the other half (``label=False``) are spanless clean negatives. Under ``TRIGGER_SPAN``
+    pooling this isolates the pooling *operator*: with the seeded random-span fallback ON, spanless
+    examples are pooled over a matched random window, so both classes get the same short-window
+    operator and -- there being no trigger content -- cannot separate. With the fallback OFF, the
+    spanless class is mean-pooled over the whole sequence while the span class keeps the short
+    window, so the two classes differ in pooling statistics alone (a short-window mean has far
+    higher variance than a full-sequence mean), manufacturing class separation from nothing.
+
+    Each example gets a unique ``base_id`` (there are no twins here; the confound is per-example),
+    so grouped and example-level splits coincide. Deterministic given the keyword arguments.
+    Returns the examples plus the ``trial_id -> token ids`` mapping.
+    """
+    if span_len < 1:
+        raise ValueError("span_len must be >= 1")
+    if seq_len <= span_len:
+        raise ValueError("seq_len must exceed span_len")
+    if n_examples < 3:
+        raise ValueError(f"need at least 3 examples to form three splits, got {n_examples}")
+
+    rng = np.random.default_rng((seed, _TAG_OPERATOR_CONFOUND))
+    examples: list[ProbeExample] = []
+    tokens: dict[str, list[int]] = {}
+    for index in range(n_examples):
+        label = index % 2 == 0
+        ids = [int(x) for x in rng.integers(1, vocab_size, size=seq_len)]
+        span: tuple[int, int] | None = None
+        if label:
+            start = int(rng.integers(0, seq_len - span_len + 1))
+            span = (start, start + span_len)
+        trial_id = f"opconf_{index:04d}"
+        examples.append(
+            ProbeExample(
+                trial_id=trial_id,
+                base_id=f"opconf_base_{index:04d}",
+                label=label,
+                label_source=ProbeLabelSource.SYNTHETIC,
+                trigger_token_start=span[0] if span else None,
+                trigger_token_end=span[1] if span else None,
+                metadata={"trigger_inserted": label, "population": "operator_confound"},
+            )
+        )
+        tokens[trial_id] = ids
     return examples, tokens

@@ -39,6 +39,49 @@ def test_new_fields_have_backward_compatible_defaults() -> None:
     assert cfg.generalization is None
 
 
+def test_e0_ablation_fields_default_to_current_behavior() -> None:
+    # The three E0 confound-ablation toggles must default to the leakage-safe behavior so an
+    # existing config (and the whole default path) is unchanged unless it explicitly opts in.
+    cfg = _minimal()
+    assert cfg.split_mode == "grouped"
+    assert cfg.span_random_fallback is True
+    assert cfg.calibration_include_partial is False
+
+
+def test_e0_ablation_fields_round_trip() -> None:
+    cfg = _minimal(
+        split_mode="example",
+        span_random_fallback=False,
+        calibration_include_partial=True,
+    )
+    assert cfg.split_mode == "example"
+    assert cfg.span_random_fallback is False
+    assert cfg.calibration_include_partial is True
+
+
+def test_split_mode_rejects_unknown_value() -> None:
+    with pytest.raises(ValidationError):
+        _minimal(split_mode="stratified")
+
+
+def test_e0_ablation_fields_parse_from_yaml(tmp_path: Path) -> None:
+    yaml_text = textwrap.dedent(
+        """
+        experiment_id: probe_e0_ablation_yaml
+        split_mode: example
+        span_random_fallback: false
+        calibration_include_partial: true
+        """
+    )
+    path = tmp_path / "cfg.yaml"
+    path.write_text(yaml_text, encoding="utf-8")
+
+    cfg = load_config(path, ProbeDetectionExperimentConfig)
+    assert cfg.split_mode == "example"
+    assert cfg.span_random_fallback is False
+    assert cfg.calibration_include_partial is True
+
+
 def test_extractor_knobs_round_trip() -> None:
     cfg = _minimal(device="cuda:0", revision="main", trust_remote_code=True)
     assert cfg.device == "cuda:0"

@@ -9,6 +9,9 @@ evaluates conditional on verified delivery (labels joined from Project 1's
 from trigger_audit.experiments.probe_detection.config import ProbeDetectionExperimentConfig
 from trigger_audit.experiments.probe_detection.dataset import (
     assign_splits,
+    assign_splits_example_level,
+    build_leakage_demo_dataset,
+    build_operator_confound_dataset,
     build_probe_examples,
     build_synthetic_probe_dataset,
     build_synthetic_probe_dataset_with_twins,
@@ -37,6 +40,9 @@ __all__ = [
     "ProbeModelSpec",
     "assign_generalization_splits",
     "assign_splits",
+    "assign_splits_example_level",
+    "build_leakage_demo_dataset",
+    "build_operator_confound_dataset",
     "build_probe_examples",
     "build_synthetic_probe_dataset",
     "build_synthetic_probe_dataset_with_twins",

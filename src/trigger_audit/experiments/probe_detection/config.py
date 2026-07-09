@@ -67,6 +67,28 @@ class ProbeDetectionExperimentConfig(BaseModel):
     calibration_fraction: float = 0.25
     split_seed: int = 0
 
+    # --- E0 instrument confound ablations (each defaults to the current, leakage-safe behavior;
+    # flip one to expose the confound the corresponding pre-registered E0 experiment measures). ---
+    # E0.3 leakage-safety. "grouped" (default) splits by base_id so counterfactual twins stay on
+    # one side of the train/test line (assign_splits); "example" splits examples independently,
+    # ignoring base_id, so twins straddle the boundary and the probe can memorize base content --
+    # the deliberately leaky control whose inflation E0.3 quantifies (assign_splits_example_level).
+    split_mode: Literal["grouped", "example"] = "grouped"
+    # E0.4 pooling operator-confound. When True (default) a spanless example under TRIGGER_SPAN
+    # pooling is pooled over a seeded random span of the median trigger length, so the pooling
+    # OPERATOR is identical across every class and only trigger CONTENT can separate them. When
+    # False the fallback is disabled and spanless examples are mean-pooled over the whole sequence
+    # instead -- re-exposing the operator confound (a short-window mean and a full-sequence mean
+    # have different feature statistics even with no trigger content). Ignored unless pooling is
+    # TRIGGER_SPAN; the default path is byte-for-byte unchanged.
+    span_random_fallback: bool = True
+    # E0.5 three-population calibration. When False (default) thresholds calibrate on CLEAN
+    # (never-inserted) calibration negatives only -- the population the FPR budget actually
+    # contracts. When True the calibration-negative pool also includes partial-survival negatives
+    # (trigger_inserted & ~label), whose trigger-contaminated scores bias the threshold high and
+    # depress delivered-only TPR, worst in the partial-survival regime this repo studies.
+    calibration_include_partial: bool = False
+
     # E2.x generalization holdout. When set, the run applies this holdout (drop un-held-out
     # rows, hold out one side as TEST, carve a base_id-grouped calibration subset from the
     # train side) instead of the base_id-fraction split. ``None`` keeps every existing run
