@@ -1,6 +1,10 @@
 # Project 2 — Fan-Out Workflow (activation-probe trigger detection)
 
-**Status:** working draft (v1). Grounds every phase in the higher-level plans
+**Status:** reconstruction **COMPLETE** — all P2 components rebuilt from spec and offline-tested
+(full suite green, `mypy` clean, 10 CLI commands); the E0 instrument tier runs offline (E0.1 gate PASS,
+E0.2 FPR-resolution confirmed, E0 grid = 12 cells); E1–E4 config families defined (E1=450, E2=24,
+E3=24 cells), GPU/approval-gated. Remaining offline piece: E0.3–E0.5 ablations (need small split-mode /
+span-fallback / mixed-calibration toggles). Grounds every phase in the higher-level plans
 (`PROJECT2_MASTER.md`, `PROJECT2_FOUNDATIONS.md`, `PROJECT2_EXPERIMENT_PLAN.md`,
 `docs/tasks/project2/*`). This document is the executable process for implementing and fanning out
 all of Project 2. It is **local-only** (git-excluded); it never enters the public P1 repo.
