@@ -1,0 +1,7 @@
+| pipeline_policy | n_pairs | skipped | b | c | p_value |
+| --- | --- | --- | --- | --- | --- |
+| none | 91620 | 0 | 91320 | 0 | 0.000 |
+| keep_recent_messages | 91620 | 0 | 50129 | 0 | 0.000 |
+| truncate_head | 91620 | 0 | 39837 | 0 | 0.000 |
+| truncate_tail | 91620 | 0 | 67155 | 0 | 0.000 |
+| truncate_middle | 91620 | 0 | 78955 | 0 | 0.000 |

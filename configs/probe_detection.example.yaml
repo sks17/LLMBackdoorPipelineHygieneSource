@@ -1,0 +1,53 @@
+# Example probe-detection experiment (Project 2).
+#
+# Trains per-layer linear probes on hidden-state activations to detect trigger presence,
+# calibrates thresholds to the target FPRs on the clean (never-inserted) negatives of the
+# held-out calibration split, and evaluates on all trials vs delivered-only trials. With
+# survival_results_path/final_tokens_path null,
+# a deterministic synthetic dataset is built so this config runs fully offline against the
+# reference extractor:
+#
+#   trigger-audit run-probe-experiment configs/probe_detection.example.yaml
+name: probe_detection
+experiment_id: probe_detection_example
+model_id: reference-model
+
+# Activation extractor: "reference" (offline, deterministic) or "hf" (real model; requires
+# the [hf] + [generate] extras and a real model_id).
+extractor_backend: reference
+extractor_seed: 0
+extractor_hidden_size: 64
+extractor_num_layers: 4
+
+# Hidden-state layers to probe (0 = embedding layer, matching HF hidden_states indexing).
+layers: [0, 1, 2, 3, 4]
+pooling: mean
+
+# Numpy logistic-regression probe hyperparameters.
+probe_l2: 0.01
+probe_lr: 0.5
+probe_max_iter: 1000
+
+# Deployment-style operating points: thresholds are calibrated to these FPR budgets.
+target_fprs: [0.01, 0.001]
+
+# Multi-layer score aggregation (see probes/aggregation.py for the registry):
+# mean_score, max_score, min_score, product_of_experts, quantile, stacked_logistic.
+aggregation: mean_score
+aggregation_params: {}
+
+# base_id-grouped split fractions (test gets the remainder) -- twins never straddle splits.
+train_fraction: 0.5
+calibration_fraction: 0.25
+split_seed: 0
+
+# Measurement inputs: join Project 1's delivery-verified records. Both null -> synthetic
+# offline dataset (the smoke/test path).
+survival_results_path: null
+final_tokens_path: null
+synthetic_n_examples: 60
+synthetic_seq_len: 16
+synthetic_seed: 0
+
+activations_dir: outputs/activations
+results_out: outputs/probe_detection/results.jsonl

@@ -1,0 +1,11 @@
+pipeline_policy,failure_stage,n,row_prop
+none,template_removed_or_changed,300,1.0
+keep_recent_messages,memory_policy_dropped,38491,0.9276951628063917
+keep_recent_messages,template_incompatible,2700,0.06507435347424742
+keep_recent_messages,template_removed_or_changed,300,0.0072304837193608255
+truncate_head,truncated_head,51483,0.9942065928972829
+truncate_head,template_removed_or_changed,300,0.005793407102717108
+truncate_tail,truncated_tail,24165,0.987737584304108
+truncate_tail,template_removed_or_changed,300,0.012262415695892091
+truncate_middle,truncated_middle,12365,0.9763126727200947
+truncate_middle,template_removed_or_changed,300,0.02368732727990525

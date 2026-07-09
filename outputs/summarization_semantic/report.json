@@ -1,0 +1,68 @@
+{
+  "verbatim": {
+    "policy": "summarize_old_messages",
+    "summarizer_id": "reference:verbatim",
+    "scorer_id": "reference",
+    "scorer_revision": "reference",
+    "threshold": 0.28571428571428575,
+    "target_fpr": 0.0,
+    "achieved_fpr": 0.0,
+    "fpr_wilson": [
+      0.0,
+      0.32441561951087694
+    ],
+    "n_absent": 8,
+    "gold_precision": 0.875,
+    "gold_recall": 0.875,
+    "gold_n": 14,
+    "n_present": 8,
+    "semantic_survival_rate": 0.0,
+    "class_counts": {
+      "exact_survival": 8
+    }
+  },
+  "paraphrase": {
+    "policy": "summarize_old_messages",
+    "summarizer_id": "reference:paraphrase",
+    "scorer_id": "reference",
+    "scorer_revision": "reference",
+    "threshold": 0.28571428571428575,
+    "target_fpr": 0.0,
+    "achieved_fpr": 0.0,
+    "fpr_wilson": [
+      0.0,
+      0.32441561951087694
+    ],
+    "n_absent": 8,
+    "gold_precision": 0.875,
+    "gold_recall": 0.875,
+    "gold_n": 14,
+    "n_present": 8,
+    "semantic_survival_rate": 1.0,
+    "class_counts": {
+      "semantic_survival": 8
+    }
+  },
+  "drop": {
+    "policy": "summarize_old_messages",
+    "summarizer_id": "reference:drop",
+    "scorer_id": "reference",
+    "scorer_revision": "reference",
+    "threshold": 5e-324,
+    "target_fpr": 0.0,
+    "achieved_fpr": 0.0,
+    "fpr_wilson": [
+      0.0,
+      0.32441561951087694
+    ],
+    "n_absent": 8,
+    "gold_precision": 0.8,
+    "gold_recall": 1.0,
+    "gold_n": 14,
+    "n_present": 8,
+    "semantic_survival_rate": 0.0,
+    "class_counts": {
+      "no_survival": 8
+    }
+  }
+}

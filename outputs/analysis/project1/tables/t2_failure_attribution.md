@@ -1,0 +1,12 @@
+| pipeline_policy | failure_stage | n | row_prop |
+| --- | --- | --- | --- |
+| none | template_removed_or_changed | 300 | 1.000 |
+| keep_recent_messages | memory_policy_dropped | 38491 | 0.928 |
+| keep_recent_messages | template_incompatible | 2700 | 0.065 |
+| keep_recent_messages | template_removed_or_changed | 300 | 0.007 |
+| truncate_head | truncated_head | 51483 | 0.994 |
+| truncate_head | template_removed_or_changed | 300 | 0.006 |
+| truncate_tail | truncated_tail | 24165 | 0.988 |
+| truncate_tail | template_removed_or_changed | 300 | 0.012 |
+| truncate_middle | truncated_middle | 12365 | 0.976 |
+| truncate_middle | template_removed_or_changed | 300 | 0.024 |

@@ -1,0 +1,51 @@
+\begin{tabular}{lrllrrrrrrrrrrr}
+\toprule
+pipeline_policy & context_length & data_source & reference & diff & ci_lo & ci_hi & n_a & n_b & p_tost & p_holm & p_bh & equivalent_raw & equivalent_holm & equivalent_bh \\
+\midrule
+keep_recent_messages & 512 & lmsys & synthetic & -0.309943 & -0.352562 & -0.266200 & 10440 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+keep_recent_messages & 512 & longdoc & synthetic & 0.413333 & 0.373733 & 0.452194 & 1800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+keep_recent_messages & 512 & wildchat & synthetic & -0.271759 & -0.316481 & -0.227539 & 10800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+keep_recent_messages & 1024 & lmsys & synthetic & -0.290690 & -0.333703 & -0.247154 & 10440 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+keep_recent_messages & 1024 & longdoc & synthetic & 0.413333 & 0.373733 & 0.452194 & 1800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+keep_recent_messages & 1024 & wildchat & synthetic & -0.203889 & -0.250581 & -0.159864 & 10800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+keep_recent_messages & 2048 & lmsys & synthetic & -0.008008 & -0.057988 & 0.039863 & 10440 & 7500 & 0.081000 & 1.000000 & 0.227813 & False & False & False \\
+keep_recent_messages & 2048 & longdoc & synthetic & 0.226667 & 0.189420 & 0.263409 & 1800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+keep_recent_messages & 2048 & wildchat & synthetic & 0.025278 & -0.022123 & 0.072757 & 10800 & 7500 & 0.200000 & 1.000000 & 0.529412 & False & False & False \\
+none & 512 & lmsys & synthetic & 0.013333 & 0.008730 & 0.018012 & 10440 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+none & 512 & longdoc & synthetic & 0.013333 & 0.008713 & 0.018085 & 1800 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+none & 512 & wildchat & synthetic & 0.013333 & 0.008719 & 0.018013 & 10800 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+none & 1024 & lmsys & synthetic & 0.013333 & 0.008730 & 0.018012 & 10440 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+none & 1024 & longdoc & synthetic & 0.013333 & 0.008713 & 0.018085 & 1800 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+none & 1024 & wildchat & synthetic & 0.013333 & 0.008719 & 0.018013 & 10800 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+none & 2048 & lmsys & synthetic & 0.013333 & 0.008730 & 0.018012 & 10440 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+none & 2048 & longdoc & synthetic & 0.013333 & 0.008713 & 0.018085 & 1800 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+none & 2048 & wildchat & synthetic & 0.013333 & 0.008719 & 0.018013 & 10800 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+truncate_head & 512 & lmsys & synthetic & -0.078793 & -0.099978 & -0.058272 & 10440 & 7500 & 0.987000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_head & 512 & longdoc & synthetic & -0.140000 & -0.155937 & -0.123866 & 1800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_head & 512 & wildchat & synthetic & -0.106389 & -0.130523 & -0.081864 & 10800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_head & 1024 & lmsys & synthetic & -0.032510 & -0.049853 & -0.015204 & 10440 & 7500 & 0.048000 & 1.000000 & 0.144000 & True & False & False \\
+truncate_head & 1024 & longdoc & synthetic & -0.110000 & -0.132573 & -0.087119 & 1800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_head & 1024 & wildchat & synthetic & -0.017407 & -0.036077 & 0.002273 & 10800 & 7500 & 0.003000 & 0.099000 & 0.010385 & True & False & True \\
+truncate_head & 2048 & lmsys & synthetic & 0.080019 & 0.033349 & 0.127341 & 10440 & 7500 & 0.846500 & 1.000000 & 1.000000 & False & False & False \\
+truncate_head & 2048 & longdoc & synthetic & -0.049444 & -0.140203 & 0.034868 & 1800 & 7500 & 0.496500 & 1.000000 & 1.000000 & False & False & False \\
+truncate_head & 2048 & wildchat & synthetic & 0.103333 & 0.059285 & 0.148859 & 10800 & 7500 & 0.979500 & 1.000000 & 1.000000 & False & False & False \\
+truncate_middle & 512 & lmsys & synthetic & -0.108602 & -0.124863 & -0.093295 & 10440 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_middle & 512 & longdoc & synthetic & -0.053333 & -0.063033 & -0.043063 & 1800 & 7500 & 0.700500 & 1.000000 & 1.000000 & False & False & False \\
+truncate_middle & 512 & wildchat & synthetic & -0.194907 & -0.212984 & -0.177421 & 10800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_middle & 1024 & lmsys & synthetic & -0.027854 & -0.040876 & -0.015298 & 10440 & 7500 & 0.002500 & 0.085000 & 0.009375 & True & False & True \\
+truncate_middle & 1024 & longdoc & synthetic & -0.053333 & -0.063033 & -0.043063 & 1800 & 7500 & 0.700500 & 1.000000 & 1.000000 & False & False & False \\
+truncate_middle & 1024 & wildchat & synthetic & -0.058426 & -0.075845 & -0.041852 & 10800 & 7500 & 0.787000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_middle & 2048 & lmsys & synthetic & 0.018812 & 0.008465 & 0.029561 & 10440 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+truncate_middle & 2048 & longdoc & synthetic & -0.023333 & -0.043605 & -0.004083 & 1800 & 7500 & 0.015000 & 0.480000 & 0.048214 & True & False & True \\
+truncate_middle & 2048 & wildchat & synthetic & 0.026667 & 0.016651 & 0.037395 & 10800 & 7500 & 0.000000 & 0.000000 & 0.000000 & True & True & True \\
+truncate_tail & 512 & lmsys & synthetic & 0.050939 & 0.040293 & 0.061177 & 10440 & 7500 & 0.568000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_tail & 512 & longdoc & synthetic & 0.086667 & 0.079217 & 0.094091 & 1800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_tail & 512 & wildchat & synthetic & 0.047963 & 0.034110 & 0.061689 & 10800 & 7500 & 0.391000 & 1.000000 & 0.977500 & False & False & False \\
+truncate_tail & 1024 & lmsys & synthetic & 0.086877 & 0.068919 & 0.105084 & 10440 & 7500 & 0.999500 & 1.000000 & 1.000000 & False & False & False \\
+truncate_tail & 1024 & longdoc & synthetic & 0.116667 & 0.094364 & 0.137132 & 1800 & 7500 & 1.000000 & 1.000000 & 1.000000 & False & False & False \\
+truncate_tail & 1024 & wildchat & synthetic & 0.092500 & 0.071043 & 0.115298 & 10800 & 7500 & 0.999500 & 1.000000 & 1.000000 & False & False & False \\
+truncate_tail & 2048 & lmsys & synthetic & 0.092989 & 0.068905 & 0.117352 & 10440 & 7500 & 0.998500 & 1.000000 & 1.000000 & False & False & False \\
+truncate_tail & 2048 & longdoc & synthetic & 0.079444 & 0.047156 & 0.110530 & 1800 & 7500 & 0.936500 & 1.000000 & 1.000000 & False & False & False \\
+truncate_tail & 2048 & wildchat & synthetic & 0.076389 & 0.051224 & 0.102758 & 10800 & 7500 & 0.957500 & 1.000000 & 1.000000 & False & False & False \\
+\bottomrule
+\end{tabular}
